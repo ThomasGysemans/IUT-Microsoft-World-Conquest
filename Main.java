@@ -95,7 +95,7 @@ class Main extends Program {
             case RIGHT_ARROW_KEY:
                 moveCursorToRight();
                 break;
-            case 'q': // (char)a may be equal to the letter 'q' for example
+            case 'q': // "(char)a" may be equal to the letter 'q' for example
                 finishedTyping = true;
                 break;
         }
@@ -229,7 +229,7 @@ class Main extends Program {
     void initializeColors() {
         CSVFile colors = loadCSV(COLORS_PATH);
         int nbLignes = rowCount(colors);
-        int x,r,g,b;
+        int x,i,r,g,b;
 
         // Nous sommes obligés de redefinir COLORS
         // pour que nous ayons une liste de taille prédéfinie
@@ -238,21 +238,23 @@ class Main extends Program {
 
         for (int lig=1;lig<nbLignes;lig++) {
             x = stringToInt(getCell(colors, lig, 1));
-            r = stringToInt(getCell(colors, lig, 2));
-            g = stringToInt(getCell(colors, lig, 3));
-            b = stringToInt(getCell(colors, lig, 4));
-            COLORS[lig-1] = newColor(r,g,b,x==1);
-            //COLORS[lig-1] = RGBToANSI(new int[]{r,g,b}, true);
+            i = stringToInt(getCell(colors, lig, 2));
+            r = stringToInt(getCell(colors, lig, 3));
+            g = stringToInt(getCell(colors, lig, 4));
+            b = stringToInt(getCell(colors, lig, 5));
+            //print("(" + r + ";" + g + ";" + b + "), i = " + i + " and x = " + x);
+            COLORS[lig-1] = newColor(r,g,b,x==1,i==1);
         }
     }
 
     /**
      * Fake constructor of the Color class.
      */
-    Color newColor(int r, int g, int b, boolean x) {
+    Color newColor(int r, int g, int b, boolean x, boolean i) {
         Color color = new Color();
         color.ANSI = RGBToANSI(new int[]{r,g,b}, true);
         color.x = x;
+        color.i = i;
         return color;
     }
 
