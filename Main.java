@@ -42,7 +42,7 @@ class Main extends Program {
     // on charge tout avant le début du jeu.
     // Problème : on ne sait pas en avance le nombre de couleurs ni le nombre de cartes.
     // On initialise le bordel ici, puis on changera ça après.
-    String[] COLORS = new String[1];
+    Color[] COLORS = new Color[1];
     int[][][] MAPS = new int[1][1][1];
 
     void algorithm() {
@@ -123,9 +123,12 @@ class Main extends Program {
 
         // Première étape : réécrire la bonne couleur à la position actuelle du joueur.
         int previousPos = MAPS[currentMapIndex][playerY][playerX/PIXEL_SIZE]; // les coordonnées seront toujours un multiple de PIXEL_SIZE
-        String color = previousPos == -1 ? ANSI_BG_DEFAULT_COLOR : COLORS[previousPos];
         moveCursorTo(playerX, playerY);
-        printPixel(color);
+        if (previousPos == -1) {
+            printTransparentPixel();
+        } else {
+            printPixel(COLORS[previousPos]);
+        }
 
         // Deuxième étape : écrire le pixel du joueur
         moveCursorTo(x, y);
@@ -197,10 +200,12 @@ class Main extends Program {
         if (posX >= maxX || posY >= maxY || posX < 0 || posY < 0) {
             return false;
         }
-        /*else if (map[posY][posX] == -1) {
+        int colorIndex = map[posY][posX/PIXEL_SIZE];
+        if (colorIndex == -1) {
             return false;
-        }*/
-        // todo: vérifier si la case cible est franchissable
+        } else if (!COLORS[colorIndex].x) {
+            return false;
+        }
         return true;
     }
 
@@ -229,15 +234,26 @@ class Main extends Program {
         // Nous sommes obligés de redefinir COLORS
         // pour que nous ayons une liste de taille prédéfinie
         // car on peut toujours pas utiliser ArrayList!!!!!
-        COLORS = new String[nbLignes-1];
+        COLORS = new Color[nbLignes-1];
 
         for (int lig=1;lig<nbLignes;lig++) {
             x = stringToInt(getCell(colors, lig, 1));
             r = stringToInt(getCell(colors, lig, 2));
             g = stringToInt(getCell(colors, lig, 3));
             b = stringToInt(getCell(colors, lig, 4));
-            COLORS[lig-1] = RGBToANSI(new int[]{r,g,b}, true);
+            COLORS[lig-1] = newColor(r,g,b,x==1);
+            //COLORS[lig-1] = RGBToANSI(new int[]{r,g,b}, true);
         }
+    }
+
+    /**
+     * Fake constructor of the Color class.
+     */
+    Color newColor(int r, int g, int b, boolean x) {
+        Color color = new Color();
+        color.ANSI = RGBToANSI(new int[]{r,g,b}, true);
+        color.x = x;
+        return color;
     }
 
     /**
@@ -254,13 +270,12 @@ class Main extends Program {
         // Encore une fois, on n'est pas autorisés à utiliser ArrayList,
         // ce qui nous limite dans nos efforts d'optimisation.
         // Ici, on utilise une astuce pour que Java ne renvoie pas d'erreurs.
-        // Même si on définit que les maps seront d'une taille 1 x 1,
+        // Même si on définit que les maps seront d'une taille 2 x 2,
         // elles ne le seront pas, et aucune erreur ne sera renvoyée.
         MAPS = new int[2][2][numberOfMaps];
 
 
         for (int i = 0; i < numberOfMaps; i++) {
-
             CSVFile file = loadCSV(path + mapsFiles[i]);
             int[][] map = createMapFromCSVContent(file);
             MAPS[i] = map;
@@ -301,7 +316,7 @@ class Main extends Program {
             for (int col=0;col<nbCol;col++) {
                 int n = map[lig][col];
                 if (n == -1) {
-                    printPixel(ANSI_BG_DEFAULT_COLOR);
+                    printTransparentPixel();
                 } else {
                     printPixel(COLORS[n]);
                 }
@@ -312,6 +327,21 @@ class Main extends Program {
 
     /**
      * Colore un pixel.
+     */
+    void printPixel(Color color) {
+        print(color.ANSI + PIXEL + ANSI_RESET);
+    }
+
+    /**
+     * Colore un pixel transparent
+     */
+    void printTransparentPixel() {
+        print(ANSI_BG_DEFAULT_COLOR + PIXEL + ANSI_RESET);
+    }
+
+    /**
+     * Colore un pixel qui ne provient pas d'une carte.
+     * C'est le cas pour le pixel du joueur.
      */
     void printPixel(String color) {
         print(color + PIXEL + ANSI_RESET);
