@@ -7,11 +7,25 @@ class ManipulationConsole extends Program {
   boolean finished = false;
 
   void algorithm() {
+    clearScreen();
+    getCursorPosition();
     enableKeyTypedInConsole(true);
     while (!finished) {
       delay(500);
     }
-    println("Done.");
+    enableKeyTypedInConsole(false);
+  }
+
+  void getCursorPosition() {
+    print("\033[6n"); // prints ESC[n;mR where n is the ROW and m the COLUMN
+  }
+
+  void saveCursorPosition() {
+    print("\033[s");
+  }
+
+  void restoreCursorPosition() {
+    print("\033[u");
   }
 
   void keyTypedInConsole(int a) {
@@ -23,7 +37,7 @@ class ManipulationConsole extends Program {
         finished = true;
         break;
       default:
-        println(a);
+        println("printed something : " + a + " meaning " + (char)a);
     }
   }
 }
