@@ -665,7 +665,7 @@ class Main extends Program {
         CSVFile file = loadCSV(COMMANDS_PATH);
         int nCommands = rowCount(file);
         
-        COMMANDS = new Command[nCommands];
+        COMMANDS = new Command[nCommands-1];
 
         for (int lig=1;lig<nCommands;lig++) {
             String name = getCell(file, lig, 0);
@@ -755,8 +755,13 @@ class Main extends Program {
         }
         printEmptyLines(GUI_VERTICAL_MARGIN + 1); // +1 pour la ligne réservée à l'heure
         printEqualsRow(equalsRowLength);
-        String exampleCommand = getCommandText('F');
-        println(exampleCommand);
+        displayCommandsPanel();
+    }
+
+    void displayCommandsPanel() {
+        for (int i = 0; i < length(COMMANDS); i++) {
+            println("   [" + COMMANDS[i].key + "] " + COMMANDS[i].name.toUpperCase() + "   ");
+        }
     }
 
     /**
