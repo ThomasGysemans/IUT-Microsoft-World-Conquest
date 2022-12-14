@@ -42,6 +42,7 @@ class Main extends Program {
     final String COLORS_PATH = "../assets/0-colors.csv"; // le fichier contenant toutes les couleurs
     final String TELEPORTATIONS_PATH = "../assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
     final String COMMANDS_PATH = "../assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
+    final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les commandes par défaut
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     final String FIRST_MAP = "cellule-du-joueur"; // la première map sur laquelle le joueur démarre
@@ -58,6 +59,8 @@ class Main extends Program {
     Color[] COLORS = new Color[1];
     Map[] MAPS = new Map[1]; // lol avant on avait int[][][] MAPS = new int[1][1][1], quel délire !
     Command[] COMMANDS = new Command[1];
+    TVInfo[] TV_INFO = new TVInfo[1];
+    int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
 
     final int DAY_DELAY = 6*60; // 6 minutes = 1 jour
     //final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
@@ -138,6 +141,7 @@ class Main extends Program {
             initializeColors();
             initializeAllMaps();
             initializeAllCommands();
+            initializeAllTVInfo();
             printEmptyLines(2);
 
             delay(500); // au cas où le chargement est trop vite, on veut que le joueur voit le splashscreen
@@ -436,6 +440,36 @@ class Main extends Program {
         // comme étant la nouvelle position du joueur.
         playerY = y;
         playerX = x;
+
+        if (hasInteractiveCellNearPlayer()) {
+            // todo.
+        }
+    }
+
+    /**
+     * Vérifie si dans un carré de 3 par 3 autour du joueur il existe une case interactive.
+     * Une case interactive peut être :
+     * - une couleur possédant un dialogue
+     * - la télé
+     * @return `true` s'il y a une case interactive proche du joueur, `false` sinon.
+     */
+    boolean hasInteractiveCellNearPlayer() {
+        int[][] grid = getMapOfName(currentMap).grid;
+        int height = length(grid);
+        int width = length(grid[0]);
+        for (int y=playerY-1; y>=0 && y<height && y<=playerY+1; y++) {
+            for (int x=(playerX-PIXEL_SIZE)/PIXEL_SIZE; x<=(playerX+PIXEL_SIZE)/PIXEL_SIZE; x++) {
+                // todo. change this behaviour
+                try {
+                    if (grid[y][x] == TV_INDEX) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    // ignore.
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -667,24 +701,30 @@ class Main extends Program {
         
         COMMANDS = new Command[nCommands-1];
 
-        for (int lig=1;lig<nCommands;lig++) {
-            String name = getCell(file, lig, 0);
-            char character = charAt(getCell(file, lig, 1), 0);
-            COMMANDS[lig-1] = newCommand(name, character);
+        for (int i=1;i<nCommands;i++) {
+            Command command = new Command();
+            command.name = getCell(file, i, 0);
+            command.key = charAt(getCell(file, i, 1), 0);
+            COMMANDS[i-1] = command;
         }
     }
 
     /**
-     * Fake constructor of the Command class
-     * @param name Le nom de la commande
-     * @param character La touche du clavier associée à cette commande.
-     * @return Une instance de Command
+     * Initialise toutes les infos de la télé (dans la cellule du joueur)
      */
-    Command newCommand(String name, char character) {
-        Command command = new Command();
-        command.name = name;
-        command.key = character;
-        return command;
+    void initializeAllTVInfo() {
+        CSVFile file = loadCSV(TVINFO_PATH);
+        int nInfo = rowCount(file);
+
+        TV_INFO = new TVInfo[nInfo-1];
+        TV_INDEX = stringToInt(getCell(file, 1, 1)); // on veut l'info juste une fois
+
+        for (int i=1;i<nInfo;i++) {
+            TVInfo info = new TVInfo();
+            info.day = stringToInt(getCell(file, i, 0));
+            info.text = getCell(file, i, 2);
+            TV_INFO[i-1] = info;
+        }
     }
 
     /**
@@ -908,7 +948,7 @@ class Main extends Program {
             for (int j = 0; j < width; j++) {
                 print(map[i][j] + ", ");
             }
-            print("]\n");
+            print("]\r\n");
         }
     }
 }
