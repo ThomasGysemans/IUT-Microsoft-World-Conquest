@@ -742,7 +742,7 @@ class Main extends Program {
         printEqualsRow(equalsRowLength);
         printEmptyLines(GUI_VERTICAL_MARGIN);
         for (int lig=0;lig<mapHeight;lig++) {
-            print("  ");
+            print(repeatChar(" ", GUI_HORIZONTAL_MARGIN));
             for (int col=0;col<mapWidth;col++) {
                 int n = grid[lig][col];
                 if (n == -1) {
