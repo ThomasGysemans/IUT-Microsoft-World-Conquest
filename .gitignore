@@ -1,6 +1,6 @@
-.idea
-.fleet
-.vscode
-classes
-Exemple.java
+.idea/
+.fleet/
+.vscode/
+classes/
+tests/
 menu.txt

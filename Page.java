@@ -1,0 +1,7 @@
+enum Page {
+  MENU,
+  GAME,
+  COMMANDS,
+  CREDITS,
+  ACHIEVEMENTS,
+}
