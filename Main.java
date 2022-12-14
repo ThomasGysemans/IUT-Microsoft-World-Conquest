@@ -471,7 +471,7 @@ class Main extends Program {
      * @return Un entier correspondant à la largeur totale de l'interface graphique.
      */
     int getGUIWidth(Map map) {
-        return (GUI_HORIZONTAL_MARGIN * 2) + length(map.grid[0]);
+        return length(map.grid[0])*PIXEL_SIZE+(GUI_HORIZONTAL_MARGIN*2);
     }
 
     /**
@@ -738,7 +738,7 @@ class Main extends Program {
         int[][] grid = map.grid;
         int mapHeight = length(grid);
         int mapWidth = length(grid[0]);
-        int equalsRowLength = mapWidth*PIXEL_SIZE+(GUI_HORIZONTAL_MARGIN*2);
+        int equalsRowLength = getGUIWidth(map);
         printEqualsRow(equalsRowLength);
         printEmptyLines(GUI_VERTICAL_MARGIN);
         for (int lig=0;lig<mapHeight;lig++) {
@@ -751,9 +751,9 @@ class Main extends Program {
                     printPixel(COLORS[n]);
                 }
             }
-            println(""); // very important
+            println(""); // très important
         }
-        printEmptyLines(GUI_VERTICAL_MARGIN + 1);
+        printEmptyLines(GUI_VERTICAL_MARGIN + 1); // +1 pour la ligne réservée à l'heure
         printEqualsRow(equalsRowLength);
         String exampleCommand = getCommandText('F');
         println(exampleCommand);
