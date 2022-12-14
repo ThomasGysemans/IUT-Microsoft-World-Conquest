@@ -44,7 +44,7 @@ class Main extends Program {
     final String COMMANDS_PATH = "../assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    final String FIRST_MAP = "bibliotheque"; // la première map sur laquelle le joueur démarre
+    final String FIRST_MAP = "cellule-du-joueur"; // la première map sur laquelle le joueur démarre
     String currentMap = FIRST_MAP; // la carte actuellement affichée
     int playerX = 0; // la position en X du joueur
     int playerY = 0; // la position en Y du joueur

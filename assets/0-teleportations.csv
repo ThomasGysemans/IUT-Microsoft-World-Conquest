@@ -37,3 +37,6 @@ color,map,movX,movY,x,y
 115,salle-random-3,-1,0,4,4
 116,cellule-du-joueur,0,-1,3,4
 117,cellule-du-joueur,0,-1,4,4
+120,pikapika,0,1,14,7
+121,cellule-du-joueur,1,0,0,0
+0,cellule-du-joueur,0,0,0,0
