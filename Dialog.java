@@ -1,3 +1,0 @@
-class Dialog {
-  String[] texts;
-}
