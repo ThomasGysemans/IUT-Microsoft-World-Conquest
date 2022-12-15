@@ -45,10 +45,11 @@ class Main extends Program {
     final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les commandes par défaut
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    final String FIRST_MAP = "cellule-du-joueur"; // la première map sur laquelle le joueur démarre
+    final String FIRST_MAP = "bibliotheque"; // la première map sur laquelle le joueur démarre
     String currentMap = FIRST_MAP; // la carte actuellement affichée
-    int playerX = 0; // la position en X du joueur
-    int playerY = 0; // la position en Y du joueur
+    int playerX = 18; // la position en X du joueur
+    int playerY = 9; // la position en Y du joueur
+    int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
 
     // On veut stocker les informations au préalable
     // Pour éviter de charger les fichiers, et de les recharger quand nécessaire,
@@ -61,10 +62,11 @@ class Main extends Program {
     Command[] COMMANDS = new Command[1];
     TVInfo[] TV_INFO = new TVInfo[1];
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
+    int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
-    final int DAY_DELAY = 6*60; // 6 minutes = 1 jour
-    //final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
-    final int HOUR_DELAY = 2; // le nombre de secondes nécessaires pour incrémenter l'heure
+    final int DAY_DELAY = 2*60; // 2 minutes = 1 jour
+    final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
+    final int deadline = 30; // si `day` atteint cette valeur, alors game over!
     int hour = 17; // l'heure actuelle (in-game)
     int day = 0; // le jour actuel (in-game)
     Thread time; // le thread séparé correspondant au temps
@@ -77,12 +79,18 @@ class Main extends Program {
         * Sur un thread séparé, on compte l'heure et le jour
         */
         createTime(() -> {
-            hour++;
-            if (hour == 24) {
-                hour = 0;
-                day++;
+            // Pour des raisons inconnues, time.interrupt() interrompt bien le thread,
+            // mais on arrive pas à le remettre en route.
+            // Donc on fait en sorte ici que `hour` et `day`
+            // ne soient incrémentés que lorsqu'on est sur la page de jeu
+            if (page == Page.GAME) {
+                hour++;
+                if (hour == 24) {
+                    hour = 0;
+                    day++;
+                }
+                displayTime();
             }
-            displayTime();
             time.run();
         }, HOUR_DELAY*1000);
         /*
@@ -110,10 +118,11 @@ class Main extends Program {
             try {
                 Thread.sleep(delay);
                 runnable.run();
-            } catch (Exception e){
+            } catch (Exception e) {
                 // ignore, for now at least
             }
         });
+        time.start();
     }
 
     /**
@@ -144,7 +153,7 @@ class Main extends Program {
             initializeAllTVInfo();
             printEmptyLines(2);
 
-            delay(500); // au cas où le chargement est trop vite, on veut que le joueur voit le splashscreen
+            delay(250); // au cas où le chargement est trop vite, on veut que le joueur voit le splashscreen
 
             restoreCursorPosition(); // on va écrire à la place du mot "Chargement..."
         }
@@ -169,41 +178,6 @@ class Main extends Program {
         printlnRightAlinedText("version " + VERSION, width);
 
         game_started = true;
-    }
-
-    /**
-     * Renvoie une chaine dans laquelle une autre chaine a été répétée autant de fois que précisé.
-     * @param c La chaine à répéter.
-     * @param times Le nombre de fois que la chaîne doit être répétée.
-     * @return Une nouvelle chaine contenant le caractère `c` répété `times` fois.
-     */
-    String repeatChar(String c, int times) {
-        String str = "";
-        for (int i = 0; i < times; i++) {
-            str += c;
-        }
-        return str;
-    }
-
-    /**
-     * Affiche une ligne dans laquelle il y a un certain nombre de fois le signe "="
-     * @param times Le nombre de "=".
-     */
-    void printEqualsRow(int times) {
-        for (int i = 0; i < times; i++) {
-            print("=");
-        }
-        println("");
-    }
-    
-    /**
-     * Saute une ligne pour créer un effet d'espacement entre du texte.
-     * @param times Le nombre de lignes vides.
-     */
-    void printEmptyLines(int times) {
-        for (int i = 0; i < times; i++) {
-            println("");
-        }
     }
 
     /**
@@ -285,9 +259,21 @@ class Main extends Program {
                 case RIGHT_ARROW_KEY:
                     moveCursorToRight();
                     break;
+                case 'f':
+                    if (nearestInteractiveCell == TV_INDEX) {
+                        for (int i = lastIndexOfTVInfo; i < length(TV_INFO); i++) {
+                            if (TV_INFO[i].day == (day+1)) {
+                                writeMessage("Vous écoutez la télé qui dit : " + TV_INFO[i].text);
+                                lastIndexOfTVInfo = i;
+                                break;
+                            }
+                        }
+                        println("");
+                        println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                    }
+                    break;
                 case 'q':
                     loadMainMenu();
-                    time.interrupt(); // met le temps en pause
                     break;
             }
         } else {
@@ -328,12 +314,11 @@ class Main extends Program {
      */
     void playGame() {
         page = Page.GAME;
-        time.start();
 
         clearMyScreen();
         Map map = getMapOfName(currentMap);
         displayMap(map);
-        printPlayer(0,0);
+        printPlayer(playerX,playerY);
 
         displayTime();
     }
@@ -380,12 +365,12 @@ class Main extends Program {
         */
         Map map = getMapOfName(currentMap);
         int[][] grid = map.grid;
-        int currentColorIndex = grid[playerY][playerX/PIXEL_SIZE];
+        int currentColorIndex = grid[playerY][playerX];
         Color currentColor = COLORS[currentColorIndex];
         // S'il s'agit d'une passerelle vers une autre carte,
         // on vérifie si le mouvement appliqué permet d'y accéder.
         if (currentColor.t) {
-            int shiftX = (x - playerX) / PIXEL_SIZE; // le déplacement qui a été réalisé sur l'axe X
+            int shiftX = x - playerX; // le déplacement qui a été réalisé sur l'axe X
             int shiftY = y - playerY; // le déplacement qui a été réalisé sur l'axe Y
             if (shiftX == currentColor.movX && shiftY == currentColor.movY) {
                 teleportPlayerToNewMap(currentColor.toMap, currentColor.toX, currentColor.toY);
@@ -395,14 +380,14 @@ class Main extends Program {
         
         // Il s'agit d'un déplacement normal quelque part sur la carte,
         // il nous faut vérifier si ce mouvement ne fait pas sortir le joueur en-dehors de celle-ci.
-        int maxX = length(grid[0]) * PIXEL_SIZE;
+        int maxX = length(grid[0]);
         int maxY = length(grid);
         if (x >= maxX || y >= maxY || x < 0 || y < 0) {
             return;
         }
 
         // Il peut y avoir des murs, qui correspondent à des pixels transparents limitrophes.
-        int colorIndexOfTarget = grid[y][x/PIXEL_SIZE];
+        int colorIndexOfTarget = grid[y][x];
         if (colorIndexOfTarget == -1) {
             return;
         }
@@ -419,11 +404,11 @@ class Main extends Program {
         saveCursorPosition();
 
         // Première étape : réécrire la bonne couleur à la position actuelle du joueur.
-        int previousPos = map.grid[playerY][playerX/PIXEL_SIZE]; // les coordonnées seront toujours un multiple de PIXEL_SIZE
+        int previousPos = map.grid[playerY][playerX];
         Color color = previousPos == -1 ? null : COLORS[previousPos];
         int xShift = getXShift();
         int yShift = getYShift();
-        moveCursorTo(playerX + xShift, playerY + yShift);
+        moveCursorTo(playerX*PIXEL_SIZE + xShift, playerY + yShift);
         if (previousPos == -1) {
             printTransparentPixel();
         } else {
@@ -431,50 +416,65 @@ class Main extends Program {
         }
 
         // Deuxième étape : écrire le pixel du joueur
-        moveCursorTo(x + xShift, y + yShift);
+        moveCursorTo(x*PIXEL_SIZE + xShift, y + yShift);
         printPlayer();
 
-        // On revient à la position initiale du curseur.
         restoreCursorPosition();
         // On définit les coordonnées données
         // comme étant la nouvelle position du joueur.
-        playerY = y;
         playerX = x;
+        playerY = y;
 
-        if (hasInteractiveCellNearPlayer()) {
-            // todo.
+        saveCursorPosition();
+        int previousValue = nearestInteractiveCell;
+        if ((nearestInteractiveCell = hasInteractiveCellNearPlayer()) != previousValue) {
+            displayCommandsPanel();
         }
+        restoreCursorPosition();
+
+        // On veut effacer le message de la télé
+        // donc on place le curseur après la map et le panneau de commandes,
+        // et on clear les 5 lignes suivantes.
+        int totalHeight = getGUIHeight(map) + length(COMMANDS) + 1;
+        for (int i = 0; i < 5; i++) {
+            moveCursorTo(0,totalHeight+i);
+            clearLine();
+        }
+        moveCursorTo(0,totalHeight);
+        saveCursorPosition();
     }
 
     /**
      * Vérifie si dans un carré de 3 par 3 autour du joueur il existe une case interactive.
+     * S'il y en a une, on renvoie l'indice de la couleur du pixel, afin de l'identifier
+     * et savoir quoi faire lorsque le joueur appuie sur la touche d'interactivité (par défaut, 'F').
      * Une case interactive peut être :
      * - une couleur possédant un dialogue
      * - la télé
-     * @return `true` s'il y a une case interactive proche du joueur, `false` sinon.
+     * @return La couleur de la cellule interactive la plus proche s'il y a une case interactive proche du joueur, `-1` sinon.
      */
-    boolean hasInteractiveCellNearPlayer() {
+    int hasInteractiveCellNearPlayer() {
         int[][] grid = getMapOfName(currentMap).grid;
         int height = length(grid);
         int width = length(grid[0]);
-        for (int y=playerY-1; y>=0 && y<height && y<=playerY+1; y++) {
-            for (int x=(playerX-PIXEL_SIZE)/PIXEL_SIZE; x<=(playerX+PIXEL_SIZE)/PIXEL_SIZE; x++) {
-                // todo. change this behaviour
+        for (int y=playerY-1; y>=-1 && y<height && y<=playerY+1; y++) {
+            for (int x=playerX-1; x>=-1 && x<width && x<=playerX+1; x++) {
                 try {
                     if (grid[y][x] == TV_INDEX) {
-                        return true;
+                        return TV_INDEX;
                     }
                 } catch (Exception e) {
                     // ignore.
                 }
             }
         }
-        return false;
+        return -1;
     }
 
     /**
      * Retourne la largeur entre le côté gauche (x=0) et le début de la map actuellement affichée.
      * Le but est de positionner le joueur correctement dans la map malgré le GUI.
+     * Note: ceci tient compte de `PIXEL_SIZE`.
      * @return Le décalage en X.
      */
     int getXShift() {
@@ -487,7 +487,7 @@ class Main extends Program {
      * @return Le décalage en Y.
      */
     int getYShift() {
-        return GUI_VERTICAL_MARGIN + 2;
+        return GUI_VERTICAL_MARGIN + 3; // +2 pour lignes vides, equals row et le nom de la map
     }
 
     /**
@@ -496,7 +496,7 @@ class Main extends Program {
      * @return Un entier correspondant à la hauteur totale de l'interface graphique.
      */
     int getGUIHeight(Map map) {
-        return (GUI_VERTICAL_MARGIN * 2) + length(map.grid) + 3; // +2 pour les lignes de "=" et +1 car on y affiche aussi le temps
+        return (GUI_VERTICAL_MARGIN * 2) + length(map.grid) + 4; // +2 pour les lignes de "=" et +1 car on y affiche aussi le temps +1 pour le nom de la map
     }
 
     /**
@@ -555,11 +555,11 @@ class Main extends Program {
     }
 
     void moveCursorToLeft() {
-        displayPlayer(playerX-PIXEL_SIZE, playerY);
+        displayPlayer(playerX-1, playerY);
     }
 
     void moveCursorToRight() {
-        displayPlayer(playerX+PIXEL_SIZE, playerY);
+        displayPlayer(playerX+1, playerY);
     }
 
     /**
@@ -574,7 +574,7 @@ class Main extends Program {
         clearMyScreen();
         currentMap = map;
         displayMap();
-        playerX = targetX * PIXEL_SIZE;
+        playerX = targetX;
         playerY = targetY;
         printPlayer(playerX,playerY);
         displayTime();
@@ -703,7 +703,7 @@ class Main extends Program {
 
         for (int i=1;i<nCommands;i++) {
             Command command = new Command();
-            command.name = getCell(file, i, 0);
+            command.name = getCell(file, i, 0).toUpperCase();
             command.key = charAt(getCell(file, i, 1), 0);
             COMMANDS[i-1] = command;
         }
@@ -781,6 +781,7 @@ class Main extends Program {
         int equalsRowLength = getGUIWidth(map);
         printEqualsRow(equalsRowLength);
         printEmptyLines(GUI_VERTICAL_MARGIN);
+        println("(" + map.name + ")");
         for (int lig=0;lig<mapHeight;lig++) {
             print(repeatChar(" ", GUI_HORIZONTAL_MARGIN));
             for (int col=0;col<mapWidth;col++) {
@@ -798,26 +799,62 @@ class Main extends Program {
         displayCommandsPanel();
     }
 
+    /**
+     * Affiche le panneau avec toutes les touches que l'utilisateur peut utiliser.
+     * Ceci est vérifié à chaque déplacement.
+     * Si l'on détecte une nouvelle touche,
+     * alors on recrée l'intégralité du panneau en appelant cette fonction.
+     */
     void displayCommandsPanel() {
+        Map map = getMapOfName(currentMap);
+        int width = getGUIWidth(map);
+        int height = getGUIHeight(map);
+        moveCursorTo(0,height+1);
         for (int i = 0; i < length(COMMANDS); i++) {
-            println("   [" + COMMANDS[i].key + "] " + COMMANDS[i].name.toUpperCase() + "   ");
+            // todo: each key should have a unique id (a way to idenfity them clearly) as the player may change the shortcut in the future
+            if (COMMANDS[i].key == 'f' && nearestInteractiveCell == -1) {
+                clearLine();
+                print("\r\n"); // just to make sure that the cursor goes back to the right place afterwards
+                continue;
+            }
+            // todo: we'll need to turn `key` to upper cases on initialization
+            println("   [" + COMMANDS[i].key + "] " + COMMANDS[i].name + "   ");
         }
     }
 
     /**
-     * Retourne le texte à afficher pour une commande spécifique.
-     * Selon le format : 
-     * @param key Le caractère associé à cette commande.
-     * @return Le texte formaté
+     * Renvoie une chaine dans laquelle une autre chaine a été répétée autant de fois que précisé.
+     * @param c La chaine à répéter.
+     * @param times Le nombre de fois que la chaîne doit être répétée.
+     * @return Une nouvelle chaine contenant le caractère `c` répété `times` fois.
      */
-    String getCommandText(char key) {
-        Command command;
-        for (int i = 0; i < length(COMMANDS); i++) {
-            if (COMMANDS[i].key == key) {
-                return "   [" + key + "] " + COMMANDS[i].name.toUpperCase() + "   ";
-            }
+    String repeatChar(String c, int times) {
+        String str = "";
+        for (int i = 0; i < times; i++) {
+            str += c;
         }
-        return "";
+        return str;
+    }
+
+    /**
+     * Affiche une ligne dans laquelle il y a un certain nombre de fois le signe "="
+     * @param times Le nombre de "=".
+     */
+    void printEqualsRow(int times) {
+        for (int i = 0; i < times; i++) {
+            print("=");
+        }
+        println("");
+    }
+    
+    /**
+     * Saute une ligne pour créer un effet d'espacement entre du texte.
+     * @param times Le nombre de lignes vides.
+     */
+    void printEmptyLines(int times) {
+        for (int i = 0; i < times; i++) {
+            println("");
+        }
     }
 
     /**
@@ -853,7 +890,7 @@ class Main extends Program {
      */
     void printPlayer(int x, int y) {
         saveCursorPosition();
-        moveCursorTo(x+getXShift(), y+getYShift());
+        moveCursorTo(x*PIXEL_SIZE+getXShift(), y+getYShift());
         printPlayer();
         restoreCursorPosition();
     }
@@ -897,15 +934,27 @@ class Main extends Program {
         return i;
     }
 
+    /**
+     * Affiche un message venant de la télé.
+     * @param message Le message textuel à afficher sur une ligne.
+     */
+    void writeMessage(String message) {
+        Map map = getMapOfName(currentMap);
+        int height = getGUIHeight(map) + length(COMMANDS);
+        moveCursorTo(0,height+2);
+        clearLine();
+        println(message);
+    }
+
     /*
      *
      * C'est le moment de parler d'une dinguerie...
      * En bref, la façon dont fonctionne `enableKeyTypedInConsole` c'est de changer
      * le mode d'entrée des commandes du terminal via `stty raw`.
      * Le problème n'est pas très clair, mais en gros, quand on fait un clearMyScreen(),
-     * tout en étant en mode `raw`, les "carriage return" sont oubliés (\r), et par conséquent,
+     * tout en étant en mode `raw`, les "carriage return" sont oubliés (\r) lors de l'écriture d'un '\n', et par conséquent,
      * on obtient le "staircase effect" comme décrit ci-dessous.
-     * J'ai donc manuellement ajouté le "\r" aux méthodes `println`.
+     * J'ai donc manuellement ajouté le '\r' aux méthodes `println`.
      *
      * Exemple pour le "staircaise effect" causé par le `println` de iJava (un `println` par ligne) :
      * ```
