@@ -43,7 +43,7 @@ Enfin, notez que si votre terminal est trop petit pour afficher correctement le 
 
 Le jeu est très complexe et possède de nombreuses fonctionnalités différentes expliquées et détaillées d'une part ici et d'autre part dans les commentaires du code source lui-même.
 
-### Organiation du code
+### Organisation du code
 
 Le code principal se trouve dans `Main.java`. Nous utilisons les types suivants :
 
@@ -159,3 +159,7 @@ On replace le curseur à une position précise sous l'interface afin d'éviter d
 iJava nous permet de capturer les touches saisies par l'utilisateur en direct (on capture l'événement) ce qui est bien plus ergonomique.
 
 [Plus d'informations sur ANSI ici](https://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html)
+
+## Remerciements
+
+Merci beaucoup à toute la team, aux profs qui ont aidé et merci à JB pour nous laisser utiliser son nom dans le jeu.
