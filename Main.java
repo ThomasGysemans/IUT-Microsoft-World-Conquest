@@ -22,14 +22,14 @@ class Main extends Program {
     final int GUI_VERTICAL_MARGIN = 1;
 
     // Les valeurs numériques arbitraires associées aux flèches du clavier.
-    // Pour trouver certaines valeurs, nous avons regarder le code source de iJava ;)
+    // Nous avons trouver certaines valeurs en regardant le code source de iJava ;)
     final int TOP_ARROW_KEY = 17;
     final int BOTTOM_ARROW_KEY = 18;
     final int LEFT_ARROW_KEY = 19;
     final int RIGHT_ARROW_KEY = 20;
     final int ENTER_KEY = 13;
 
-    // Un booléan pour savoir quand l'utilisateur a terminé de se déplacer ou d'intéragir
+    // Un booléan pour savoir quand l'utilisateur a terminé de se déplacer ou d'intéragir.
     // Une valeur à `true` stoppe la saisie si elle est déjà démarrée, et arrête le programme.
     boolean finishedTyping = false;
     Page page = Page.MENU; // la page actuelle
@@ -38,15 +38,14 @@ class Main extends Program {
     int menuPosY = 0; // alors pas le choix, faut donner à tout mouvement des coordonnées et jouer avec les nombres
     final int MENU_ITEMS_NUMBER = 4; // 4 choix possibles dans le menu
 
-    final String MAPS_PATH = "../assets/maps/";
+    final String MAPS_PATH = "../assets/maps/"; // le fichier contenant toutes les cartes
     final String COLORS_PATH = "../assets/0-colors.csv"; // le fichier contenant toutes les couleurs
     final String TELEPORTATIONS_PATH = "../assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
     final String COMMANDS_PATH = "../assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
-    final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les commandes par défaut
+    final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    final String FIRST_MAP = "bibliotheque"; // la première map sur laquelle le joueur démarre
-    String currentMap = FIRST_MAP; // la carte actuellement affichée
+    String currentMap = "bibliotheque"; // la carte actuellement affichée
     int playerX = 18; // la position en X du joueur
     int playerY = 9; // la position en Y du joueur
     int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
@@ -64,7 +63,7 @@ class Main extends Program {
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
-    final int DAY_DELAY = 2*60; // 2 minutes = 1 jour
+    final int DAY_DELAY = 2*60; // nombre de secondes (in-game) pour un jour
     final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
     final int deadline = 30; // si `day` atteint cette valeur, alors game over!
     int hour = 17; // l'heure actuelle (in-game)
@@ -131,7 +130,7 @@ class Main extends Program {
      */
     void loadMainMenu() {
         page = Page.MENU;
-        selectedMenu = 1; // default valuew
+        selectedMenu = 1; // default value
 
         int width = 50;
         clearMyScreen();
@@ -143,7 +142,6 @@ class Main extends Program {
         printEqualsRow(width);
         printEmptyLines(1);
 
-        // s'il n'y a pas de maps, ça veut dire que c'est la première fois qu'on charge le jeu.
         if (!game_started) {
             saveCursorPosition(); // on sauvegarde avant le chargement pour pouvoir effacer le texte ensuite
             print(repeatChar(" ", 20) + "Chargement...");
@@ -153,7 +151,7 @@ class Main extends Program {
             initializeAllTVInfo();
             printEmptyLines(2);
 
-            delay(250); // au cas où le chargement est trop vite, on veut que le joueur voit le splashscreen
+            delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
             restoreCursorPosition(); // on va écrire à la place du mot "Chargement..."
         }
@@ -238,7 +236,7 @@ class Main extends Program {
                             achievementsPage();
                             break;
                         default:
-                            println("HOLD ON!! Fix your code, bro! This doesn't make any sense.");
+                            println("HOLD ON!! Fix your code, bro! Are you trying to add a page or something?");
                     }
                     break;
                 case 'q':
@@ -259,7 +257,7 @@ class Main extends Program {
                 case RIGHT_ARROW_KEY:
                     moveCursorToRight();
                     break;
-                case 'f':
+                case 'f': // temporary
                     if (nearestInteractiveCell == TV_INDEX) {
                         for (int i = lastIndexOfTVInfo; i < length(TV_INFO); i++) {
                             if (TV_INFO[i].day == (day+1)) {
@@ -309,8 +307,7 @@ class Main extends Program {
 
     /**
      * Initialise le jeu (Page.GAME).
-     * Débute le "temps".
-     * Et affiche la map actuelle, ainsi que le joueur aux coordonnées initiales.
+     * Affiche la map actuelle, ainsi que le joueur.
      */
     void playGame() {
         page = Page.GAME;
@@ -324,7 +321,7 @@ class Main extends Program {
     }
 
     /**
-     * Affiche le temps dans l'interface graphique à une position donnée.
+     * Affiche le temps dans l'interface graphique à une position précise.
      */
     void displayTime() {
         if (page != Page.GAME) {
@@ -334,10 +331,9 @@ class Main extends Program {
         int height = getGUIHeight(map);
         saveCursorPosition();
         moveCursorTo(0,height-1); // entre la map et la ligne de "=" du dessous
-        // la largeur de la ligne change souvent (si heur < 10 par exemple)
+        // la largeur de la ligne change souvent (si hour < 10 par exemple)
         // donc on risquerait de pas supprimer le texte précédent,
-        // alors on ajoute plein d'espaces pour être sûr qu'on efface tout sur cette ligne.
-        // Pour des raisons inconnues, `clearLine()` de iJava ne marche pas ici.
+        // alors on ajoute quelques d'espaces pour être sûr qu'on efface tout sur cette ligne.
         println(hour + "h, jour " + (day + 1) + "    ");
         restoreCursorPosition();
     }
@@ -345,7 +341,10 @@ class Main extends Program {
     /**
      * On veut positionner le joueur à une position précise (x;y).
      * Avec (0;0) le coin supérieur gauche.
-     * Pour cela, on sauvegarde la position actuelle du curseur,
+     * Dans un premier temps, on doit vérifier s'il s'agit d'un mouvement autorisé,
+     * S'il s'agit d'une téléportation, alors on la réalise directement ici.
+     * 
+     * Pour bouger le joueur, on sauvegarde la position actuelle du curseur,
      * On réécrit la couleur de la carte censée être à la position actuelle du joueur,
      * puis on bouge le curseur à la position souhaitée
      * afin d'écrire la couleur du pixel représentant le joueur.
@@ -445,9 +444,9 @@ class Main extends Program {
     }
 
     /**
-     * Vérifie si dans un carré de 3 par 3 autour du joueur il existe une case interactive.
+     * Vérifie si dans un carré autour du joueur il existe une case interactive.
      * S'il y en a une, on renvoie l'indice de la couleur du pixel, afin de l'identifier
-     * et savoir quoi faire lorsque le joueur appuie sur la touche d'interactivité (par défaut, 'F').
+     * et savoir quoi faire lorsque le joueur appuie sur la touche d'interactivité (par défaut, 'f').
      * Une case interactive peut être :
      * - une couleur possédant un dialogue
      * - la télé
@@ -457,6 +456,7 @@ class Main extends Program {
         int[][] grid = getMapOfName(currentMap).grid;
         int height = length(grid);
         int width = length(grid[0]);
+        // todo. we should only check for the cells in a cross pattern (+) instead of a square pattern
         for (int y=playerY-1; y>=-1 && y<height && y<=playerY+1; y++) {
             for (int x=playerX-1; x>=-1 && x<width && x<=playerX+1; x++) {
                 try {
@@ -487,7 +487,7 @@ class Main extends Program {
      * @return Le décalage en Y.
      */
     int getYShift() {
-        return GUI_VERTICAL_MARGIN + 3; // +2 pour lignes vides, equals row et le nom de la map
+        return GUI_VERTICAL_MARGIN + 3; // +3 pour lignes vides, equals row et le nom de la map
     }
 
     /**
@@ -584,7 +584,7 @@ class Main extends Program {
      * Converti une couleur RGB au format ANSI.
      * La standardisation ANSI nous permet de colorer du texte, ou de le surligner.
      * @param rgb Une liste de 3 nombres entre 0 et 255 inclus, selon le format RGB.
-     * @param backgroundColor Vrai si l'on veut que la couleur soit sur le fond du texte. Le texte aura donc la couleur par défaut.
+     * @param backgroundColor Vrai si l'on veut que la couleur soit sur le fond du texte. Le texte aurait donc la couleur par défaut.
      * @return La couleur donnée au format ANSI, colorant le fond ou le texte.
      */
     String RGBToANSI(int[] rgb, boolean backgroundColor) {
@@ -596,7 +596,7 @@ class Main extends Program {
      * Chaque couleur a des metadonnées associées à elle qui définissent des propriétés uniques.
      * Elles peuvent avoir les propriétés suivantes :
      * - être franchissable ou non (est-ce qu'on peut marcher dessus ou non)
-     * - être interactive (un PNJ par exemple)
+     * - être interactive (un PNJ par exemple, ce qui n'est pas encore implémenté)
      * - être un chemin vers une autre map (exemple: une porte menant sur une autre salle), ce qu'on appelle la "téléportation"
      * Pour avoir toutes les données nécessaires, on lit plusieurs fichiers :
      * - La charte de couleurs (`./assets/0-colors.csv`)
@@ -613,7 +613,7 @@ class Main extends Program {
 
         // Nous sommes obligés de redefinir COLORS
         // pour que nous ayons une liste de taille prédéfinie
-        // car on peut toujours pas utiliser ArrayList!!!
+        // car askip on peut pas utiliser ArrayList!
         COLORS = new Color[nColors-1];
 
         for (int lig=1;lig<nColors;lig++) {
@@ -642,8 +642,7 @@ class Main extends Program {
 
     /**
      * Crée une instance de Color avec les metadonnées de base.
-     * Les autres métadonnées sont ajoutés ensuite.
-     * Elles ont des valeurs par défaut.
+     * Les autres métadonnées sont ajoutés ensuite (elles ont des valeurs par défaut).
      * @param r La composante rouge
      * @param g La composante verte
      * @param b La composante bleue
@@ -762,7 +761,7 @@ class Main extends Program {
 
     /**
      * Affiche la carte actuelle dans le terminal.
-     * On notera qu'un pixel = 2 caractères (deux espaces) car ensemble ils forment un carré.
+     * On notera qu'un pixel = 2 caractères (deux espaces blancs) car ensemble ils forment un carré.
      * Un caractère, par défaut, forme un rectangle.
      */
     void displayMap() {
@@ -771,7 +770,8 @@ class Main extends Program {
     }
 
     /**
-     * Ici, la fonction qui permet d'afficher n'importe quelle map.
+     * Ici, la fonction qui permet d'afficher n'importe quelle map au milieu de son interface.
+     * Ceci comprend donc les lignes de "=" et le nom de la map, en plus des espaces vides pour aérer l'interface.
      * @param Map La carte à afficher
      */
     void displayMap(Map map) {
@@ -837,7 +837,7 @@ class Main extends Program {
     }
 
     /**
-     * Affiche une ligne dans laquelle il y a un certain nombre de fois le signe "="
+     * Affiche une ligne dans laquelle il y a un certain nombre de fois le signe "=".
      * @param times Le nombre de "=".
      */
     void printEqualsRow(int times) {
@@ -954,7 +954,7 @@ class Main extends Program {
      * Le problème n'est pas très clair, mais en gros, quand on fait un clearMyScreen(),
      * tout en étant en mode `raw`, les "carriage return" sont oubliés (\r) lors de l'écriture d'un '\n', et par conséquent,
      * on obtient le "staircase effect" comme décrit ci-dessous.
-     * J'ai donc manuellement ajouté le '\r' aux méthodes `println`.
+     * Nous avons donc manuellement ajouté le '\r' aux méthodes `println`.
      *
      * Exemple pour le "staircaise effect" causé par le `println` de iJava (un `println` par ligne) :
      * ```
@@ -976,28 +976,5 @@ class Main extends Program {
 
     void println(int a) {
         print("\r" + a + "\r\n");
-    }
-
-    /*
-    *
-    * Les fonctions ci-dessous devront être retirées du rendu final,
-    * car elles ne sont que des fonctions de tests si l'on rencontre
-    * des bugs difficiles à fixer durant le développement.
-    * 
-    */
-
-    // Affiche le contenu d'une carte dans le terminal de manière à en comprendre son contenu
-    // pour débugger plus facilement s'il y a un problème.
-    // C'est l'équivalent d'un console.log d'une liste en JavaScript.
-    void debugMap(int[][] map) {
-        int height = length(map);
-        int width = length(map[0]);
-        for (int i = 0; i < height; i++) {
-            print("[");
-            for (int j = 0; j < width; j++) {
-                print(map[i][j] + ", ");
-            }
-            print("]\r\n");
-        }
     }
 }
