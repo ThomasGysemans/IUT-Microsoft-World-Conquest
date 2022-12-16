@@ -21,6 +21,14 @@ _Le jeu est rempli d'easter eggs (de surprises qui ne sont pas en rapport avec l
 
 ## Comment débuter le jeu
 
+_Vous devez évidemment compiler au préalable tous les fichiers `.java` avec `Main.java` en dernier. Le code source de iJava est présent dans [lib](./lib). Un rappel des commandes :_
+
+```bash
+# ceci pour tous les fichiers `.java`
+javac -cp ./lib/program.jar:. Main.java
+java -cp ./lib/program.jar:. Main
+```
+
 Vous débutez dans le menu. La plupart des pages ne sont pas encore disponibles, mais `Jouer` peut être sélectionné. À tout moment, appuyez sur `q` pour quitter.
 
 Vous incarnez un pixel rose (`#ffccbb`), déplacez-vous à l'aide des flèches directionnelles du clavier.
@@ -118,7 +126,7 @@ Les couleurs peuvent avoir plusieurs métadonnées :
 
 #### Les cartes
 
-Chaque carte est une matrice où chaque élément est le numéro unique d'une couleur définie dans la charte. En apparence, ces fichiers semblent illisibiles et difficiles à comprendre. Bien évidemment, nous n'avons pas rédigé ça à la main, Thomas a conçu un site permettant de dessiner les cartes puis ensuite de générer la charte (`0-colors.csv`), les cartes (`./assets/maps/*`) et les téléportations (`0-teleportations.csv`) : [2dmapcreator](https://2dmapcreator.sciencesky.fr/) avec système de connexion à un compte client pour travailler sur plusieurs machines (via Firebase).
+Chaque carte est une matrice où chaque élément est le numéro unique d'une couleur définie dans la charte. En apparence, ces fichiers semblent illisibiles et difficiles à comprendre. Bien évidemment, nous n'avons pas rédigé ça à la main, Thomas a conçu un site permettant de dessiner les cartes puis ensuite de générer la charte (`0-colors.csv`), les cartes (`./assets/maps/*`) et les téléportations (`0-teleportations.csv`) : [2dmapcreator](https://2dmapcreator.sciencesky.fr/) avec système de connexion à un compte client pour travailler sur plusieurs machines (via Firebase). Le code est disponible en public sur [GitHub](https://github.com/CodoPixel/2dmapcreator).
 
 Les cartes, ainsi que les autres fichiers CSV, sont initialisés une seule et unique fois au lancement du programme.
 

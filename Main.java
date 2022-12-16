@@ -8,15 +8,6 @@ import extensions.CSVFile;
  * @author Thomas Gysemans, Manon Leclercq, S1-C, 2022
  */
 class Main extends Program {
-    /*
-    /!\ ATTENTION
-    Lors de nos tests, le fichier Main.java est dans le dossier `.`.
-    Mais le fichier `.class` est automatiquement généré dans le dossier `./classes`,
-    alors tous les chemins doivent être relatifs à ce dossier.
-    En conséquence, les chemins seront tous préfixés de `../`.
-    todo: il faudrait changer ce comportement
-    */
-
     final String VERSION = "alpha";
     final int GUI_HORIZONTAL_MARGIN = 2;
     final int GUI_VERTICAL_MARGIN = 1;
@@ -38,11 +29,12 @@ class Main extends Program {
     int menuPosY = 0; // alors pas le choix, faut donner à tout mouvement des coordonnées et jouer avec les nombres
     final int MENU_ITEMS_NUMBER = 4; // 4 choix possibles dans le menu
 
-    final String MAPS_PATH = "../assets/maps/"; // le fichier contenant toutes les cartes
-    final String COLORS_PATH = "../assets/0-colors.csv"; // le fichier contenant toutes les couleurs
-    final String TELEPORTATIONS_PATH = "../assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
-    final String COMMANDS_PATH = "../assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
-    final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
+    final String GAME_MAIN_TITLE_PATH = "./assets/ascii/main-title.txt";
+    final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
+    final String COLORS_PATH = "./assets/0-colors.csv"; // le fichier contenant toutes les couleurs
+    final String TELEPORTATIONS_PATH = "./assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
+    final String COMMANDS_PATH = "./assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
+    final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
@@ -136,7 +128,7 @@ class Main extends Program {
         clearMyScreen();
         printEqualsRow(width);
         printEmptyLines(1);
-        int n = printASCII("../assets/ascii/main-title.txt");
+        int n = printASCII(GAME_MAIN_TITLE_PATH);
         print(repeatChar(" ", 25) + RGBToANSI(new int[]{252, 191, 203}, false) + "ft. Julien Baste" + ANSI_RESET);
         printEmptyLines(2);
         printEqualsRow(width);
