@@ -674,7 +674,7 @@ class Main extends Program {
      * On crée une carte du jeu en fonction des données lues du fichier CSV.
      * @param name Le nom de la map, chaque map aura un nom unique.
      * @param grid La matrice de la carte.
-     * @return Une instance de Maps
+     * @return Une instance de Map
      */
     Map newMap(String name, int[][] grid) {
         Map map = new Map();
