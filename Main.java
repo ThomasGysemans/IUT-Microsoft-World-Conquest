@@ -37,9 +37,9 @@ class Main extends Program {
     final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    String currentMap = "bibliotheque"; // la carte actuellement affichée
-    int playerX = 18; // la position en X du joueur
-    int playerY = 9; // la position en Y du joueur
+    String currentMap = "cellule-du-joueur"; // la carte actuellement affichée
+    int playerX = 0; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
+    int playerY = 0; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
     int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
 
     // On veut stocker les informations au préalable
@@ -448,18 +448,10 @@ class Main extends Program {
         int[][] grid = getMapOfName(currentMap).grid;
         int height = length(grid);
         int width = length(grid[0]);
-        // todo. we should only check for the cells in a cross pattern (+) instead of a square pattern
-        for (int y=playerY-1; y>=-1 && y<height && y<=playerY+1; y++) {
-            for (int x=playerX-1; x>=-1 && x<width && x<=playerX+1; x++) {
-                try {
-                    if (grid[y][x] == TV_INDEX) {
-                        return TV_INDEX;
-                    }
-                } catch (Exception e) {
-                    // ignore.
-                }
-            }
-        }
+        if (playerY-1 >= 0 && grid[playerY-1][playerX] == TV_INDEX) return TV_INDEX; // top
+        if (playerX+1 < width && grid[playerY][playerX+1] == TV_INDEX) return TV_INDEX; // right
+        if (playerY+1 < height && grid[playerY+1][playerX] == TV_INDEX) return TV_INDEX; // bottom
+        if (playerX-1 >= 0 && grid[playerY][playerX-1] == TV_INDEX) return TV_INDEX; // left
         return -1;
     }
 
