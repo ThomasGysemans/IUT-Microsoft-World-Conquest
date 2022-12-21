@@ -3,4 +3,6 @@
 *.class
 tests/
 menu.txt
+menu-commandes.txt
 archive/
+make_archive.sh

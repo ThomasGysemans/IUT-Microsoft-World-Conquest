@@ -20,16 +20,42 @@ class Main extends Program {
     final int RIGHT_ARROW_KEY = 20;
     final int ENTER_KEY = 13;
 
+    final String WALKING_COMMAND = "Marcher";
+    final String INTERACTIVE_COMMAND = "Interaction";
+    final String SYSTEM_COMMAND = "Système";
+
+    // Chaque commande peut être personnalisée,
+    // donc si on ne peut pas les reconnaître de manière définitive avec la touche associée,
+    // alors il nous faut un identifiant unique.
+    // Il faut donc bien faire attention à ce que les noms correspondent dans le fichier CSV.
+    final String KEY_INTERACT = "INTERACT";
+    final String KEY_CONTACT = "CONTACT";
+    final String KEY_QUIT = "QUIT";
+    final String KEY_WALK_TOP = "TOP";
+    final String KEY_WALK_RIGHT = "RIGHT";
+    final String KEY_WALK_BOTTOM = "BOTTOM";
+    final String KEY_WALK_LEFT = "LEFT";
+    // Si on utilisait vraiment Java sans restrictions,
+    // on aurait fait les choses autrement, et d'une meilleure façon...
+    final int NUMBER_OF_WALKING_COMMANDS = 4;
+    final int NUMBER_OF_INTERACTION_COMMANDS = 2;
+    final int NUMBER_OF_SYSTEM = 1;
+
     // Un booléan pour savoir quand l'utilisateur a terminé de se déplacer ou d'intéragir.
     // Une valeur à `true` stoppe la saisie si elle est déjà démarrée, et arrête le programme.
     boolean finishedTyping = false;
+
     Page page = Page.MENU; // la page actuelle
     int selectedMenu = 1; // par défaut, le joueur va sélectionner le premier élément du menu principal
-    int menuPosX = 0; // l'écran est comme un graphique orthonormé dont le centre est en haut à gauche
-    int menuPosY = 0; // alors pas le choix, faut donner à tout mouvement des coordonnées et jouer avec les nombres
+    int menuPosY = 0;
     final int MENU_ITEMS_NUMBER = 4; // 4 choix possibles dans le menu
 
+    int selectedCommand = 1; // la première commande sélectionnée dans la page des commandes
+    int selectedCommandPosY = 0;
+    boolean isWaitingForKeyInput = false; // true si on attend que l'utilisateur entre une nouvelle touche pour réassigner une commande 
+
     final String GAME_MAIN_TITLE_PATH = "./assets/ascii/main-title.txt";
+    final String COMMANDS_TITLE_PATH = "./assets/ascii/commands-title.txt";
     final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
     final String COLORS_PATH = "./assets/0-colors.csv"; // le fichier contenant toutes les couleurs
     final String TELEPORTATIONS_PATH = "./assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
@@ -129,14 +155,14 @@ class Main extends Program {
         printEqualsRow(width);
         printEmptyLines(1);
         int n = printASCII(GAME_MAIN_TITLE_PATH);
-        print(repeatChar(" ", 25) + RGBToANSI(new int[]{252, 191, 203}, false) + "ft. Julien Baste" + ANSI_RESET);
+        print(repeat(" ", 25) + RGBToANSI(new int[]{252, 191, 203}, false) + "ft. Julien Baste" + ANSI_RESET);
         printEmptyLines(2);
         printEqualsRow(width);
         printEmptyLines(1);
 
         if (!game_started) {
             saveCursorPosition(); // on sauvegarde avant le chargement pour pouvoir effacer le texte ensuite
-            print(repeatChar(" ", 20) + "Chargement...");
+            print(repeat(" ", 20) + "Chargement...");
             initializeColors();
             initializeAllMaps();
             initializeAllCommands();
@@ -148,7 +174,7 @@ class Main extends Program {
             restoreCursorPosition(); // on va écrire à la place du mot "Chargement..."
         }
 
-        print(repeatChar(" ", 12));
+        print(repeat(" ", 12));
         printBoldText("Microsoft World Conquest");
         printEmptyLines(2);
 
@@ -157,13 +183,13 @@ class Main extends Program {
 
         // constante qui correspond au nombre de lignes affichées depuis le coin supérieur gauche de l'écran sur l'axe Y
         menuPosY = n + 9;
-        println(repeatChar(" ", 20) + "> Jouer");
-        println(repeatChar(" ", 20) + "  Commandes");
-        println(repeatChar(" ", 20) + "  Crédits");
-        println(repeatChar(" ", 20) + "  Succès");
+        println(repeat(" ", 20) + "> Jouer");
+        println(repeat(" ", 20) + "  Commandes");
+        println(repeat(" ", 20) + "  Crédits");
+        println(repeat(" ", 20) + "  Succès");
         printEmptyLines(2);
         println("Appuie sur Entrer pour confirmer.");
-        println("Appuie sur 'q' pour quitter.");
+        println("Appuie sur '" + getCommandOfUID(KEY_QUIT).getCurrentChar() + "' pour quitter.");
         printEmptyLines(1);
         printlnRightAlinedText("version " + VERSION, width);
 
@@ -213,7 +239,6 @@ class Main extends Program {
                     selectMenuItem(1);
                     break;
                 case ENTER_KEY:
-                    // Switch imbriqué ! C'est si beauuu
                     switch (selectedMenu) {
                         case 1:
                             playGame();
@@ -231,43 +256,73 @@ class Main extends Program {
                             println("HOLD ON!! Fix your code, bro! Are you trying to add a page or something?");
                     }
                     break;
-                case 'q':
-                    finishedTyping = true; // ceci va fermer le programme
-                    break;
+                default:
+                    if (a == getKeyForCommandUID(KEY_QUIT)) {
+                        finishedTyping = true; // ceci va fermer le programme.
+                    }
             }
         } else if (page == Page.GAME) {
-            switch (a) {
-                case TOP_ARROW_KEY:
-                    moveCursorUp();
-                    break;
-                case BOTTOM_ARROW_KEY:
-                    moveCursorDown();
-                    break;
-                case LEFT_ARROW_KEY:
-                    moveCursorToLeft();
-                    break;
-                case RIGHT_ARROW_KEY:
-                    moveCursorToRight();
-                    break;
-                case 'f': // temporary
-                    if (nearestInteractiveCell == TV_INDEX) {
-                        for (int i = lastIndexOfTVInfo; i < length(TV_INFO); i++) {
-                            if (TV_INFO[i].day == (day+1)) {
-                                writeMessage("Vous écoutez la télé qui dit : " + TV_INFO[i].text);
-                                lastIndexOfTVInfo = i;
-                                break;
-                            }
+            // On ne peut pas utiliser un `switch` ici
+            // car les case doivent être des constantes.
+            if (a == getKeyForCommandUID(KEY_WALK_TOP)) {
+                moveCursorUp();
+            } else if (a == getKeyForCommandUID(KEY_WALK_BOTTOM)) {
+                moveCursorDown();
+            } else if (a == getKeyForCommandUID(KEY_WALK_LEFT)) {
+                moveCursorToLeft();
+            } else if (a == getKeyForCommandUID(KEY_WALK_RIGHT)) {
+                moveCursorToRight();
+            } else if (a == getKeyForCommandUID(KEY_INTERACT)) {
+                if (nearestInteractiveCell == TV_INDEX) {
+                    for (int i = lastIndexOfTVInfo; i < length(TV_INFO); i++) {
+                        if (TV_INFO[i].day == (day+1)) {
+                            writeMessage("Vous écoutez la télé qui dit : " + TV_INFO[i].text);
+                            lastIndexOfTVInfo = i;
+                            break;
                         }
-                        println("");
-                        println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
                     }
-                    break;
-                case 'q':
-                    loadMainMenu();
-                    break;
+                    println("");
+                    println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                }
+            } else if (a == getKeyForCommandUID(KEY_QUIT)) {
+                loadMainMenu();
+            }
+        } else if (page == Page.COMMANDS) {
+            if (isWaitingForKeyInput) {
+                // Si les touches ne changent pas d'ordre dans le fichier,
+                // et il n'y a aucune raison que cela se produise,
+                // alors selectedCommand - 1 correspond à l'indice de la commande sélectionnée dans COMMANDS
+                int commandIndex = selectedCommand - 1;
+                // On veut maintenant réassigner la touche et actualiser l'interface
+                Command command = COMMANDS[commandIndex];
+                command.key = a;
+                saveCursorPosition();
+                moveCursorTo(0, selectedCommandPosY);
+                clearLine();
+                println("[*] " + command.name + " (" + command.getOriginalChar() + ") : " + command.getCurrentChar());
+                restoreCursorPosition();
+                isWaitingForKeyInput = false;
+            } else {
+                switch (a) {
+                    case TOP_ARROW_KEY:
+                        isWaitingForKeyInput = false;
+                        selectCommandItem(-1);
+                        break;
+                    case BOTTOM_ARROW_KEY:
+                        isWaitingForKeyInput = false;
+                        selectCommandItem(1);
+                        break;
+                    case ENTER_KEY:
+                        isWaitingForKeyInput = !isWaitingForKeyInput;
+                        break;
+                    default:
+                        if (a == getKeyForCommandUID(KEY_QUIT)) {
+                            loadMainMenu();
+                        }
+                }
             }
         } else {
-            if (a == 'q') {
+            if (a == getKeyForCommandUID(KEY_QUIT)) {
                 loadMainMenu();
             }
         }
@@ -276,7 +331,7 @@ class Main extends Program {
     void loadEmptyPage() {
         clearMyScreen();
         println("Wooooow! Même si on a pas de vie, on a pas encore eu le temps de coder ça, sorry!");
-        println("Appuie sur 'q' pour revenir au menu.");
+        println("Appuie sur '" + getCommandOfUID(KEY_QUIT).getCurrentChar() + "' pour revenir au menu.");
     }
 
     void creditsPage() {
@@ -287,8 +342,77 @@ class Main extends Program {
 
     void shortcutsPage() {
         page = Page.COMMANDS;
-        loadEmptyPage();
-        // todo.
+        selectedCommand = 1;
+
+        clearMyScreen();
+        printEqualsRow(81);
+        printEmptyLines(1);
+        int title_height = printASCII(COMMANDS_TITLE_PATH);
+        printEmptyLines(1);
+        printEqualsRow(81);
+        printEmptyLines(1);
+        println("Changer les commandes : ");
+        printEmptyLines(1);
+        println("Commande (valeur par défaut) : valeur actuelle");
+        printEmptyLines(1);
+        println("    > " + WALKING_COMMAND);
+        selectedCommandPosY = title_height + 11;
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].category == CommandCategory.WALK) {
+                println("[" + (i == 0 ? '*' : ' ') + "] " + COMMANDS[i].name + " (" + COMMANDS[i].getOriginalChar() + ") : " + COMMANDS[i].getCurrentChar());
+            }
+        }
+        printEmptyLines(1);
+        println("    > " + INTERACTIVE_COMMAND);
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].category == CommandCategory.INTERACT) {
+                println("[ ] " + COMMANDS[i].name + " (" + COMMANDS[i].getOriginalChar() + ") : " + COMMANDS[i].getCurrentChar());
+            }
+        }
+        printEmptyLines(1);
+        println("    > " + SYSTEM_COMMAND);
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].category == CommandCategory.SYSTEM) {
+                println("[ ] " + COMMANDS[i].name + " (" + COMMANDS[i].getOriginalChar() + ") : " + COMMANDS[i].getCurrentChar());
+            }
+        }
+        printEmptyLines(2);
+        println("Sélectionner la commande à configurer avec les flèches directionnelles du clavier");
+        println("et modifier la touche en appuyant d'abord sur Entrer, et ensuite sur la touche de remplacement désirée.");
+        println("Pour quitter cette page, utilisez la touche configurée du sytème (par défaut 'q').");
+    }
+
+    void selectCommandItem(int movement) {
+        int futureChoice = selectedCommand + movement;
+        int numberOfCommands = length(COMMANDS);
+        if (futureChoice < 1 || futureChoice > numberOfCommands) {
+            return;
+        }
+        saveCursorPosition();
+        moveCursorTo(2, selectedCommandPosY);
+        print(" ");
+        print("\033[1D");
+        if (movement == 1) {
+            if (selectedCommand == NUMBER_OF_WALKING_COMMANDS || selectedCommand == NUMBER_OF_WALKING_COMMANDS + NUMBER_OF_INTERACTION_COMMANDS) {
+                print(repeat("\033[1B", 3));
+                selectedCommandPosY += 3;
+            } else {
+                selectedCommandPosY += movement;
+                print("\033[1B");
+            }
+            print("*");
+        } else {
+            if (selectedCommand == NUMBER_OF_WALKING_COMMANDS + 1 || selectedCommand == NUMBER_OF_WALKING_COMMANDS + NUMBER_OF_INTERACTION_COMMANDS + NUMBER_OF_SYSTEM) {
+                print(repeat("\033[1A", 3));
+                selectedCommandPosY -= 3;
+            } else {
+                selectedCommandPosY += movement;
+                print("\033[1A");
+            }
+            print('*');
+        }
+        restoreCursorPosition();
+        selectedCommand = futureChoice;
     }
 
     void achievementsPage() {
@@ -426,7 +550,7 @@ class Main extends Program {
         // On veut effacer le message de la télé
         // donc on place le curseur après la map et le panneau de commandes,
         // et on clear les 5 lignes suivantes.
-        int totalHeight = getGUIHeight(map) + length(COMMANDS) + 1;
+        int totalHeight = getGUIHeight(map) + getNumberOfCommandsForCategory(CommandCategory.INTERACT) + 1;
         for (int i = 0; i < 5; i++) {
             moveCursorTo(0,totalHeight+i);
             clearLine();
@@ -686,10 +810,61 @@ class Main extends Program {
 
         for (int i=1;i<nCommands;i++) {
             Command command = new Command();
-            command.name = getCell(file, i, 0).toUpperCase();
-            command.key = charAt(getCell(file, i, 1), 0);
+            command.name = getCell(file, i, 0);
+            command.category = getCategoryBasedOnName(getCell(file, i, 1));
+            command.key = stringToInt(getCell(file, i, 2));
+            command.originalKey = stringToInt(getCell(file, i, 2));
+            command.uid = getCell(file, i, 3);
             COMMANDS[i-1] = command;
         }
+    }
+
+    /**
+     * Retourne une instance de la commande demandée.
+     * @param uid L'identifiant unique attachée à cette commande.
+     * @return L'instance de Command.
+     */
+    Command getCommandOfUID(String uid) {
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].uid.equals(uid)) {
+                return COMMANDS[i];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Retourne le numéro de la touche attachée à la commande désirée.
+     * @param uid L'identifiant unique attachée à cette commande.
+     * @return L'entier qui correspond au code numérique de la touche.
+     */
+    int getKeyForCommandUID(String uid) {
+        Command c = getCommandOfUID(uid);
+        return c == null ? -1 : c.key;
+    }
+
+    int getNumberOfCommandsForCategory(CommandCategory category) {
+        int n = 0;
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].category == category) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * Retourne un enum de la catégorie de la commande basée sur le nom de la catégorie telle écrite dans le CSV.
+     * @param name Le nom de la catégorie d'une commande.
+     * @return La valeur de l'enum correspondant.
+     */
+    CommandCategory getCategoryBasedOnName(String name) {
+        switch (name) {
+            case WALKING_COMMAND: return CommandCategory.WALK;
+            case INTERACTIVE_COMMAND: return CommandCategory.INTERACT;
+            case SYSTEM_COMMAND: return CommandCategory.SYSTEM;
+        }
+        return null;
     }
 
     /**
@@ -767,7 +942,7 @@ class Main extends Program {
         printEmptyLines(GUI_VERTICAL_MARGIN);
         println("(" + map.name + ")");
         for (int lig=0;lig<mapHeight;lig++) {
-            print(repeatChar(" ", GUI_HORIZONTAL_MARGIN));
+            print(repeat(" ", GUI_HORIZONTAL_MARGIN));
             for (int col=0;col<mapWidth;col++) {
                 int n = grid[lig][col];
                 if (n == -1) {
@@ -795,14 +970,14 @@ class Main extends Program {
         int height = getGUIHeight(map);
         moveCursorTo(0,height+1);
         for (int i = 0; i < length(COMMANDS); i++) {
-            // todo: each key should have a unique id (a way to idenfity them clearly) as the player may change the shortcut in the future
-            if (COMMANDS[i].key == 'f' && nearestInteractiveCell == -1) {
-                clearLine();
-                print("\r\n"); // just to make sure that the cursor goes back to the right place afterwards
-                continue;
+            if (COMMANDS[i].category == CommandCategory.INTERACT) {
+                if (COMMANDS[i].uid.equals(KEY_INTERACT) && nearestInteractiveCell == -1) {
+                    clearLine();
+                    print("\r\n"); // just to make sure that the cursor goes back to the right place afterwards
+                    continue;
+                }
+                println("   [" + COMMANDS[i].getCurrentChar() + "] " + COMMANDS[i].name + "   ");
             }
-            // todo: we'll need to turn `key` to upper cases on initialization
-            println("   [" + COMMANDS[i].key + "] " + COMMANDS[i].name + "   ");
         }
     }
 
@@ -812,7 +987,7 @@ class Main extends Program {
      * @param times Le nombre de fois que la chaîne doit être répétée.
      * @return Une nouvelle chaine contenant le caractère `c` répété `times` fois.
      */
-    String repeatChar(String c, int times) {
+    String repeat(String c, int times) {
         String str = "";
         for (int i = 0; i < times; i++) {
             str += c;
@@ -900,7 +1075,7 @@ class Main extends Program {
      * @param maxWidth La largeur maximale de l'interface (la limite du côté droit)
      */
     void printlnRightAlinedText(String text, int maxWidth) {
-        println(repeatChar(" ", maxWidth - length(text)) + text);
+        println(repeat(" ", maxWidth - length(text)) + text);
     }
 
     /**

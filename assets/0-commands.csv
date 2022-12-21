@@ -1,2 +1,8 @@
-name,key
-interagir,f
+name,category,key,uid
+À droite,Marcher,20,RIGHT
+À gauche,Marcher,19,LEFT
+En bas,Marcher,18,BOTTOM
+En haut,Marcher,17,TOP
+Contacter Baste,Interaction,98,CONTACT
+Interagir,Interaction,102,INTERACT
+Quitter,Système,113,QUIT
