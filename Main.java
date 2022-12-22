@@ -54,6 +54,8 @@ class Main extends Program {
     int selectedCommandPosY = 0;
     boolean isWaitingForKeyInput = false; // true si on attend que l'utilisateur entre une nouvelle touche pour réassigner une commande 
 
+    final String CREDITS_TITLE_PATH = "./assets/ascii/credits-title.txt";
+    final String CREDITS_PATH = "./assets/credits.csv";
     final String GAME_MAIN_TITLE_PATH = "./assets/ascii/main-title.txt";
     final String COMMANDS_TITLE_PATH = "./assets/ascii/commands-title.txt";
     final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
@@ -78,6 +80,7 @@ class Main extends Program {
     Map[] MAPS = new Map[1]; // lol avant on avait int[][][] MAPS = new int[1][1][1], quel délire !
     Command[] COMMANDS = new Command[1];
     TVInfo[] TV_INFO = new TVInfo[1];
+    Credit[] CREDITS = new Credit[1];
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
@@ -87,6 +90,13 @@ class Main extends Program {
     int hour = 17; // l'heure actuelle (in-game)
     int day = 0; // le jour actuel (in-game)
     Thread time; // le thread séparé correspondant au temps
+    
+    // Pour contrôler le défilement des crédits, on a besoin de variables globales.
+    // On utilise des fonctions lambda, et elles requièrent des variables finales ou définies dans un contexte supérieur.
+    // On utilise également un Thread pour que l'on puisse quitter à tout moment, même si le défilement n'est pas fini.
+    Thread creditsThread;
+    int nDisplayedCredits = 0;
+    String currentCategory = "";
 
     boolean game_started = false;
 
@@ -133,7 +143,7 @@ class Main extends Program {
     void createTime(Runnable runnable, int delay) {
         time = new Thread(() -> {
             try {
-                Thread.sleep(delay);
+                time.sleep(delay);
                 runnable.run();
             } catch (Exception e) {
                 // ignore, for now at least
@@ -153,12 +163,12 @@ class Main extends Program {
         int width = 50;
         clearMyScreen();
         printEqualsRow(width);
-        printEmptyLines(1);
+        printEmptyLine();
         int n = printASCII(GAME_MAIN_TITLE_PATH);
         print(repeat(" ", 25) + RGBToANSI(new int[]{252, 191, 203}, false) + "ft. Julien Baste" + ANSI_RESET);
         printEmptyLines(2);
         printEqualsRow(width);
-        printEmptyLines(1);
+        printEmptyLine();
 
         if (!game_started) {
             saveCursorPosition(); // on sauvegarde avant le chargement pour pouvoir effacer le texte ensuite
@@ -167,6 +177,7 @@ class Main extends Program {
             initializeAllMaps();
             initializeAllCommands();
             initializeAllTVInfo();
+            initializeAllCredits();
             printEmptyLines(2);
 
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
@@ -190,7 +201,7 @@ class Main extends Program {
         printEmptyLines(2);
         println("Appuie sur Entrer pour confirmer.");
         println("Appuie sur '" + getCommandOfUID(KEY_QUIT).getCurrentChar() + "' pour quitter.");
-        printEmptyLines(1);
+        printEmptyLine();
         printlnRightAlinedText("version " + VERSION, width);
 
         game_started = true;
@@ -336,8 +347,50 @@ class Main extends Program {
 
     void creditsPage() {
         page = Page.CREDITS;
-        loadEmptyPage();
-        // todo.
+        clearMyScreen();
+
+        int width = 52;
+        printEqualsRow(width);
+        printEmptyLine();
+        printASCII(CREDITS_TITLE_PATH);
+        printEmptyLine();
+        printEqualsRow(width);
+        printEmptyLine();
+
+        creditsThread = new Thread(() -> {
+            try {
+                creditsThread.sleep(200);
+                if (page != Page.CREDITS) {
+                    creditsThread.interrupt();
+                    creditsThread = null;
+                    nDisplayedCredits = 0;
+                    currentCategory = "";
+                    return;
+                }
+                // Techniquement, on devrait dans un premier temps réarranger la liste
+                // de manière à trier les éléments en fonction de leur catégorie,
+                // afin d'être sûr que pour une certaine catégorie tous les éléments se suivent.
+                // Dans ce cas-ci, avec les restrictions imposées, on veut pas se mettre une balle :)
+                // donc on fait juste gaffe à bien arranger le fichier directement sans vérification
+                for (int i = nDisplayedCredits; i < nDisplayedCredits + 1 && i < length(CREDITS); i++) {
+                    if (!currentCategory.equals(CREDITS[i].category)) {
+                        currentCategory = CREDITS[i].category;
+                        printEmptyLine();
+                        printlnCenterAlignedText(makeBoldText(currentCategory), width);
+                    }
+                    printlnCenterAlignedText(CREDITS[i].name, width);
+                }
+                nDisplayedCredits++;
+                if (nDisplayedCredits < length(CREDITS)) {
+                    creditsThread.run();
+                }
+            }
+            catch (Exception e){
+                System.err.println(e);
+            }
+        });
+
+        creditsThread.start();
     }
 
     void shortcutsPage() {
@@ -346,15 +399,15 @@ class Main extends Program {
 
         clearMyScreen();
         printEqualsRow(81);
-        printEmptyLines(1);
+        printEmptyLine();
         int title_height = printASCII(COMMANDS_TITLE_PATH);
-        printEmptyLines(1);
+        printEmptyLine();
         printEqualsRow(81);
-        printEmptyLines(1);
+        printEmptyLine();
         println("Changer les commandes : ");
-        printEmptyLines(1);
+        printEmptyLine();
         println("Commande (valeur par défaut) : valeur actuelle");
-        printEmptyLines(1);
+        printEmptyLine();
         println("    > " + WALKING_COMMAND);
         selectedCommandPosY = title_height + 11;
         for (int i = 0; i < length(COMMANDS); i++) {
@@ -362,14 +415,14 @@ class Main extends Program {
                 println("[" + (i == 0 ? '*' : ' ') + "] " + COMMANDS[i].name + " (" + COMMANDS[i].getOriginalChar() + ") : " + COMMANDS[i].getCurrentChar());
             }
         }
-        printEmptyLines(1);
+        printEmptyLine();
         println("    > " + INTERACTIVE_COMMAND);
         for (int i = 0; i < length(COMMANDS); i++) {
             if (COMMANDS[i].category == CommandCategory.INTERACT) {
                 println("[ ] " + COMMANDS[i].name + " (" + COMMANDS[i].getOriginalChar() + ") : " + COMMANDS[i].getCurrentChar());
             }
         }
-        printEmptyLines(1);
+        printEmptyLine();
         println("    > " + SYSTEM_COMMAND);
         for (int i = 0; i < length(COMMANDS); i++) {
             if (COMMANDS[i].category == CommandCategory.SYSTEM) {
@@ -886,6 +939,24 @@ class Main extends Program {
     }
 
     /**
+     * Initialise tous les crédits.
+     * Le but est de pouvoir arranger l'affichage ordonné par catégorie.
+     */
+    void initializeAllCredits() {
+        CSVFile file = loadCSV(CREDITS_PATH);
+        int nCredits = rowCount(file);
+
+        CREDITS = new Credit[nCredits-1];
+        
+        for (int y=1;y<nCredits;y++) {
+            Credit credit = new Credit();
+            credit.name = getCell(file, y, 0);
+            credit.category = getCell(file, y, 1);
+            CREDITS[y-1] = credit;
+        }
+    }
+
+    /**
      * Lis un fichier CSV pour le convertir en une liste de nombres utilisable dans le programme.
      * @param file Le fichier CSV chargé.
      * @return Une grille où chaque élément est le pixel d'une carte.
@@ -1017,6 +1088,13 @@ class Main extends Program {
     }
 
     /**
+     * Saute une seule ligne pour créer un léger effet d'espacement entre du texte.
+     */
+    void printEmptyLine() {
+        println("");
+    }
+
+    /**
      * Colore un pixel.
      * @param color La couleur à utiliser pour colorer le pixel
      */
@@ -1065,7 +1143,26 @@ class Main extends Program {
      * Affiche un texte sur la ligne courant en gras.
      */
     void printBoldText(String text) {
-        print("\033[1m" + text + ANSI_RESET);
+        print(makeBoldText(text));
+    }
+
+    /**
+     * Retourne le texte en gras à afficher.
+     */
+    String makeBoldText(String text) {
+        return ANSI_BOLD + text + ANSI_RESET;
+    }
+
+    /**
+     * Affiche un texte au milieu de l'écran, selon la largeur totale donnée.
+     * Pour calculer la bonne position en fonction de la largeur du texte,
+     * il suffit de répéter des " " x fois avant le texte, tel que x = (largeur totale / 2) - (longueur du texte / 2),
+     * où la longueur du texte est calculée de manière à retirer les codes ANSI potentiels au début et fin de chaine.
+     * @param text Le texte à afficher
+     * @param totalWidth La largeur totale de la fenêtre
+     */
+    void printlnCenterAlignedText(String text, int totalWidth) {
+        println(repeat(" ", totalWidth/2-length(text.replaceAll("\\033\\[.*m(.+)\\033\\[.*m", "$1"))/2) + text);
     }
 
     /**
