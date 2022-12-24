@@ -1,9 +1,51 @@
-group,colorIndex,map,narrator,text,R
--1,48,"",Détenu,"J'aime les pizzas",0
--1,48,"",Détenu,"J'aime pas Microsoft",0
--1,48,"",Détenu,"chocolat chauuud",0
-0,6,"",Maxime,"Dialogue 1",1
-0,6,"",Maxime,"Dialogue 2",1
-0,6,"",Maxime,"Dialogue 3",1
-0,6,"",Maxime,"Dialogue 4",1
-0,6,"",Maxime,"Dialogue 5",1
+group,colorIndex,map,narrator,text,random
+0,32,bibliotheque,,"(Vous allumez l'ordinateur et lisez un nouvel article intrigant.)",0
+0,32,bibliotheque,Article,"Microsoft est vue comme le meilleur recours$ la solution à utiliser en entreprise… Même dans nos écoles !",0
+0,32,bibliotheque,Article,"De plus en plus de professeurs de bases de données utilisent “Access”...",0
+0,32,bibliotheque,Article,"Une aberration quand on voit que tout leur budget est passé dans la traduction de commandes inutiles et contre-intuitives !",0
+0,32,bibliotheque,Article,"La vérité est que Microsoft espionnent de plus en plus leurs naïfs clients. ",0
+0,32,bibliotheque,Article,"Nos données sont exploitées ! Nous sommes surveillés ! [...]",0
+0,32,bibliotheque,Baste,"Vous avez lu cet article ? Franchement$ je suis d’accord. Il faut qu’on arrête d’utiliser Windows dans les entreprises !",0
+0,32,bibliotheque,Toi,"Oui$ personnellement le fait d’utiliser Access m’énerve…",0
+0,32,bibliotheque,Baste,"J’utilise ArchLinux chez moi$ je préfère l’interface à Windows... Je sais$ c’est particulier…",0
+0,32,bibliotheque,Toi,"J’utilise aussi Linux ! Je suis sous Debian !",0
+0,32,bibliotheque,Baste,"Attendez$ vraiment ?",0
+0,32,bibliotheque,Toi,"Je trouve que c’est beaucoup mieux. Les options de customisation sont mieux$ on peut même changer la BEL !",0
+0,32,bibliotheque,Baste,"Attendez$ allons parler dehors$ car je sens des regards... J'aimerais pas finir en prison! Haha",0
+1,31,bibliotheque,,"(Vous vous demandez qu'est ce que ce doudou fait là... Il a l'air abimé$ à un endroit précis... Bizarre)",0
+1,31,bibliotheque,Doudou,"Dashing through the snow",0
+1,31,bibliotheque,Doudou,"On a one-horse open sleigh$",0
+1,31,bibliotheque,Doudou,"Over the fields we go$",0
+1,31,bibliotheque,Doudou,"Laughing all the way",0
+2,33,bibliotheque,Mathieu,"Je suis en train de lire ce livre : 'Des bases de données à l'Internet'.",0
+2,33,bibliotheque,Mathieu,"Il est vraiment obsolète. Je me demande qui l'a écrit !",0
+3,74,bibliotheque,,"(Ce motif de sol vous rappelle étrangement quelque chose... sous le tapis$ il est écrit "image.bmp". Curieux...)",0
+4,12,outside_bibliotheque,Baste,"Ce soir$ nous sommes réunis pour fêter l’arrivée d’un nouveau membre !",0
+4,12,outside_bibliotheque,,"(Tout le monde s'exclame)",0
+4,12,outside_bibliotheque,Manon,"Bienvenue$ (Joueur). Nous sommes tous amis et nous lutterons contre Microsoft$ ensemble !",0
+4,12,outside_bibliotheque,Thomas,"Oui ! Bienvenue chez nous ! Ici$ on est anti-Microsoft !",0
+4,12,outside_bibliotheque,,"(Vous allez parler au club)",0
+5,6,couloir,Rat,"Squeak Squeak !",0
+5,6,couloir,Toi,"Oh$ il est trop mignon ce rat ! Je vais l'appeler Maxime !",0
+6,50,couloir-6,Garde,"Tu ne peux pas passer ici !",0
+7,5,cellule-du-joueur,,"(Ce lavabo vous rappelle le mail que vous avez reçu appelant à vous laver)",0
+8,12,outside_bibliotheque,Baste,"J'ai trop de trucs sur ma to-do list ! La bataille navale de Thomas est en 114e position...",1
+8,12,outside_bibliotheque,Baste,"Le principe de l'UTF-8 est tellement simple$ c'est stupide !",1
+9,29,outside_bibliotheque,Pierre,"Regarde$ c'est trop drôle ! (Il vous montre le meme le moins drôle que vous avez vu de votre vie)",1
+9,29,outside_bibliotheque,Pierre,"Je suis encore dans le rouge ce mois-ci. Mon père ne m'a pas payé la pension alimentaire... Fait chier !",1
+9,29,outside_bibliotheque,Pierre,"J'ai acheté mon 6e briquet du mois ! Ça$ c'est orthonormé !",1
+9,29,outside_bibliotheque,Pierre,"Regarde$ regarde$ regarde$ j'ai fait la suite de Fibonacci en récursif ! T'en as de la chance$ t'es la 573ème personne à le voir !",1
+10,26,outside_bibliotheque,Tanguy,"J'ai joué à Simuland hier$ on a terminé la partie et j'ai fini dernier... Nom de Zeus !",1
+10,26,outside_bibliotheque,Tanguy,"J'ai faim. Viens au Sully avec moi$ s'il te plaît!!!!",1
+10,26,outside_bibliotheque,Tanguy,"Je suis la Vengeance.",1
+11,27,outside_bibliotheque,Elise,"(Elle transporte un étrange paquet... Il est énorme. Il est écrit "KS-52")",1
+11,27,outside_bibliotheque,Elise,"C'est quoi pour toi "boat-fishing" ?",1
+11,27,outside_bibliotheque,Elise,"Comment tu prononces "count" ? J'ai entendu quelqu'un le prononcer$ et je n'arrive plus à dormir..",1
+12,28,outside_bibliotheque,Thomas,"Tu veux venir coder avec moi ? Aide-moi à finir mon jeu$ s'il te plaît.",1
+12,28,outside_bibliotheque,Thomas,"J'ai pas dormi depuis 48h. Mais au moins$ mon jeu est fini...",1
+12,28,outside_bibliotheque,Thomas,"Tu sais combien de temps j'ai mis à venir jusqu'ici ? DEUX HEURES !",1
+12,28,outside_bibliotheque,Thomas,"J'attends toujours que Baste regarde ma bataille navale faite en BASH...",1
+13,14,outside_bibliotheque,Manon,"Vous voulez pas faire ma vaisselle ?",1
+13,14,outside_bibliotheque,Manon,"Ça fait quatre mois que j'ai demandé les APL$ je les ai toujours pas...",1
+13,14,outside_bibliotheque,Manon,"Venez faire mes courses avec moi !",1
+13,14,outside_bibliotheque,Manon,"Bon$ il est 23 heures$ mais ça vous dit pas d'aller à IKEA là ? En vrai ?",1

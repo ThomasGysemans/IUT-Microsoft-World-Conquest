@@ -66,7 +66,7 @@ class Main extends Program {
     final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    String currentMap = "cellule-du-joueur"; // la carte actuellement affichée
+    String currentMap = "bibliotheque"; // la carte actuellement affichée
     int playerX = 0; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
     int playerY = 0; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
     int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
@@ -314,11 +314,13 @@ class Main extends Program {
                     printEmptyLine();
                     println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
                 } else {
+                    boolean found_one_but_different_map = false;
                     for (int i = 0; i < length(DIALOGS); i++) {
                         if (DIALOGS[i].colorIndex == nearestInteractiveCell) {
                             // Certains dialogues ne peuvent se produire que dans une seule map précise.
                             // Cependant, certains dialogues peuvent débuter dans n'importe quelle map (donc valeur à `null`).
                             if (DIALOGS[i].map != null && !DIALOGS[i].map.equals(currentMap)) {
+                                found_one_but_different_map = true;
                                 continue;
                             }
                             // Puisqu'askip on peut pas utiliser ArrayList,
@@ -357,8 +359,11 @@ class Main extends Program {
                                     println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour continuer le dialogue en court.");
                                 }
                             }
-                            break;
+                            return;
                         }
+                    }
+                    if (found_one_but_different_map) {
+                        writeMessage("Cette personne a l'air occupé, ne la dérangez pas...");
                     }
                 }
             } else if (a == getKeyForCommandUID(KEY_QUIT)) {
@@ -1315,7 +1320,11 @@ class Main extends Program {
      * Affiche le message d'un dialogue.
      */
     void writeDialog(Dialog dialog) {
-        writeMessage(dialog.narratorName + " - " + dialog.text);
+        if (length(dialog.narratorName) == 0) {
+            writeMessage(dialog.text);
+        } else {
+            writeMessage(dialog.narratorName + " - " + dialog.text);    
+        }
     }
 
     /*
