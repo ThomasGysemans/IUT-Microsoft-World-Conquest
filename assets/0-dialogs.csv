@@ -1,5 +1,9 @@
-group,colorIndex,map,narrator,text
--1,48,"",Détenu,"J'aime les pizzas"
--1,48,"",Détenu,"J'aime pas Microsoft"
--1,48,"",Détenu,"chocolat chauuud"
-0,6,"",Toi,"Owww$ trop chou le rat$ je vais l'appeler 'Maxime'"
+group,colorIndex,map,narrator,text,R
+-1,48,"",Détenu,"J'aime les pizzas",0
+-1,48,"",Détenu,"J'aime pas Microsoft",0
+-1,48,"",Détenu,"chocolat chauuud",0
+0,6,"",Maxime,"Dialogue 1",1
+0,6,"",Maxime,"Dialogue 2",1
+0,6,"",Maxime,"Dialogue 3",1
+0,6,"",Maxime,"Dialogue 4",1
+0,6,"",Maxime,"Dialogue 5",1

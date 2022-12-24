@@ -346,11 +346,16 @@ class Main extends Program {
                                     break;
                                 }
                             }
-                            writeDialog(d[0]);
-                            printEmptyLine();
-                            if (trueLength > 1) {
-                                currentDialogs = d;
-                                println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour continuer le dialogue en court.");
+                            if (DIALOGS[i].isRandom) {
+                                writeDialog(d[(int)(random()*trueLength)]);
+                                printEmptyLine();
+                            } else {
+                                writeDialog(d[0]);
+                                printEmptyLine();
+                                if (trueLength > 1) {
+                                    currentDialogs = d;
+                                    println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour continuer le dialogue en court.");
+                                }
                             }
                             break;
                         }
@@ -900,6 +905,7 @@ class Main extends Program {
             dialog.setMap(getCell(dialogs, y, 2).replaceAll("^\"(.*)\"$", "$1")); // removing the quotes
             dialog.narratorName = getCell(dialogs, y, 3);
             dialog.text = getCell(dialogs, y, 4).replaceAll("\\$", ","); // replacing the "$" by "," because iJava doesn't read CSV correctly
+            dialog.isRandom = stringToInt(getCell(dialogs, y, 5)) == 1;
             DIALOGS[y-1] = dialog;
         }
     }
