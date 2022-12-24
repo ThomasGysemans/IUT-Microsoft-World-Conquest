@@ -61,6 +61,7 @@ class Main extends Program {
     final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
     final String COLORS_PATH = "./assets/0-colors.csv"; // le fichier contenant toutes les couleurs
     final String TELEPORTATIONS_PATH = "./assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
+    final String DIALOGS_PATH = "./assets/0-dialogs.csv"; // le fichier contenant tous les dialogues des couleurs interactives
     final String COMMANDS_PATH = "./assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
     final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
@@ -77,12 +78,16 @@ class Main extends Program {
     // On initialise le bordel ici, puis on changera ça après.
     // Pour notre plus grand malheur, ArrayList n'est pas autorisée
     Color[] COLORS = new Color[1];
+    Dialog[] DIALOGS = new Dialog[1];
     Map[] MAPS = new Map[1]; // lol avant on avait int[][][] MAPS = new int[1][1][1], quel délire !
     Command[] COMMANDS = new Command[1];
     TVInfo[] TV_INFO = new TVInfo[1];
     Credit[] CREDITS = new Credit[1];
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
+
+    Dialog[] currentDialogs = null;
+    int currentGroupIndex = 0; // l'indice du message du groupe actuel dans `currentDialogs`
 
     final int DAY_DELAY = 2*60; // nombre de secondes (in-game) pour un jour
     final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
@@ -135,7 +140,7 @@ class Main extends Program {
     }
 
     /**
-     * Noous créons le temps.
+     * Nous créons le temps.
      * Cette fonction crée un thread séparé pour incrémenter le temps de manière asynchrone.
      * @param runnable la fonction à exécuter au bout du délai
      * @param delay Le délai entre chaque exécution de la fonction `runnable`
@@ -173,12 +178,12 @@ class Main extends Program {
         if (!game_started) {
             saveCursorPosition(); // on sauvegarde avant le chargement pour pouvoir effacer le texte ensuite
             print(repeat(" ", 20) + "Chargement...");
-            initializeColors();
+            printEmptyLines(2);
+            initializeColorsAndDialogs();
             initializeAllMaps();
             initializeAllCommands();
             initializeAllTVInfo();
             initializeAllCredits();
-            printEmptyLines(2);
 
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
@@ -284,7 +289,21 @@ class Main extends Program {
             } else if (a == getKeyForCommandUID(KEY_WALK_RIGHT)) {
                 moveCursorToRight();
             } else if (a == getKeyForCommandUID(KEY_INTERACT)) {
-                if (nearestInteractiveCell == TV_INDEX) {
+                if (currentDialogs != null) {
+                    clearDialogAndMessage();
+                    currentGroupIndex++;
+                    if (currentDialogs[currentGroupIndex] == null) {
+                        resetDialogState();
+                    } else {
+                        writeDialog(currentDialogs[currentGroupIndex]);
+                        printEmptyLine();
+                        if (currentDialogs[currentGroupIndex+1] == null) {
+                            println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour terminer le dialogue.");
+                        } else {
+                            println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour continuer le dialogue.");
+                        }
+                    }
+                } else if (nearestInteractiveCell == TV_INDEX) {
                     for (int i = lastIndexOfTVInfo; i < length(TV_INFO); i++) {
                         if (TV_INFO[i].day == (day+1)) {
                             writeMessage("Vous écoutez la télé qui dit : " + TV_INFO[i].text);
@@ -292,8 +311,50 @@ class Main extends Program {
                             break;
                         }
                     }
-                    println("");
+                    printEmptyLine();
                     println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                } else {
+                    for (int i = 0; i < length(DIALOGS); i++) {
+                        if (DIALOGS[i].colorIndex == nearestInteractiveCell) {
+                            // Certains dialogues ne peuvent se produire que dans une seule map précise.
+                            // Cependant, certains dialogues peuvent débuter dans n'importe quelle map (donc valeur à `null`).
+                            if (DIALOGS[i].map != null && !DIALOGS[i].map.equals(currentMap)) {
+                                continue;
+                            }
+                            // Puisqu'askip on peut pas utiliser ArrayList,
+                            // on se fiche un peu des perf donc on donne une limite au pif
+                            // et on se débrouille après
+                            Dialog[] d = new Dialog[20]; // les messages du dialogue (chaque dialogue a un groupe unique, un entier, de messages)
+                            int trueLength = 0;
+                            boolean found = false;
+                            for (int y = 0, e = 0; y < length(DIALOGS); y++) {
+                                if (DIALOGS[y].group == DIALOGS[i].group) {
+                                    d[e++] = DIALOGS[y];
+                                    found = true;
+                                } else {
+                                    // Si on a déjà trouvé le groupe,
+                                    // sachant que tous les messages d'un même groupe se suivent,
+                                    // alors dès qu'on est dans un autre groupe, inutile de continuer la boucle.
+                                    if (found) {
+                                        break;
+                                    }
+                                }
+                            }
+                            for (int j = 0; j < length(d); j++) {
+                                if (d[j] == null) {
+                                    trueLength = j;
+                                    break;
+                                }
+                            }
+                            writeDialog(d[0]);
+                            printEmptyLine();
+                            if (trueLength > 1) {
+                                currentDialogs = d;
+                                println("[" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour continuer le dialogue en court.");
+                            }
+                            break;
+                        }
+                    }
                 }
             } else if (a == getKeyForCommandUID(KEY_QUIT)) {
                 loadMainMenu();
@@ -600,16 +661,8 @@ class Main extends Program {
         }
         restoreCursorPosition();
 
-        // On veut effacer le message de la télé
-        // donc on place le curseur après la map et le panneau de commandes,
-        // et on clear les 5 lignes suivantes.
-        int totalHeight = getGUIHeight(map) + getNumberOfCommandsForCategory(CommandCategory.INTERACT) + 1;
-        for (int i = 0; i < 5; i++) {
-            moveCursorTo(0,totalHeight+i);
-            clearLine();
-        }
-        moveCursorTo(0,totalHeight);
-        saveCursorPosition();
+        clearDialogAndMessage();
+        resetDialogState();
     }
 
     /**
@@ -625,11 +678,21 @@ class Main extends Program {
         int[][] grid = getMapOfName(currentMap).grid;
         int height = length(grid);
         int width = length(grid[0]);
-        if (playerY-1 >= 0 && grid[playerY-1][playerX] == TV_INDEX) return TV_INDEX; // top
-        if (playerX+1 < width && grid[playerY][playerX+1] == TV_INDEX) return TV_INDEX; // right
-        if (playerY+1 < height && grid[playerY+1][playerX] == TV_INDEX) return TV_INDEX; // bottom
-        if (playerX-1 >= 0 && grid[playerY][playerX-1] == TV_INDEX) return TV_INDEX; // left
+        int cell = -1;
+        if (playerY-1 >= 0 && isCellInteractive(cell = grid[playerY-1][playerX])) return cell; // top
+        if (playerX+1 < width && isCellInteractive(cell = grid[playerY][playerX+1])) return cell; // right
+        if (playerY+1 < height && isCellInteractive(cell = grid[playerY+1][playerX])) return cell; // bottom
+        if (playerX-1 >= 0 && isCellInteractive(cell = grid[playerY][playerX-1])) return cell; // left
         return -1;
+    }
+
+    /**
+     * Retourne `true` si la cellule donnée est interactive.
+     * @param cell Le numéro de la couleur de cette cellule.
+     * @return Un booléan indiquant si cette couleur est interactive ou non.
+     */
+    boolean isCellInteractive(int cell) {
+        return cell != -1 && (COLORS[cell].i || cell == TV_INDEX);
     }
 
     /**
@@ -670,6 +733,13 @@ class Main extends Program {
     }
 
     /**
+     * Retourne la hauteur du GUI + la hauteur du panneau de commandes.
+     */
+    int getTotalHeight() {
+        return getGUIHeight(getMapOfName(currentMap)) + getNumberOfCommandsForCategory(CommandCategory.INTERACT);
+    }
+
+    /**
      * Place le curseur à une certaine position sur la carte.
      * @param x La coordonnée en X
      * @param y La coordonnée en Y
@@ -690,6 +760,29 @@ class Main extends Program {
     void clearMyScreen() {
         print("\033[2J");
         moveCursorTo(0,0);
+    }
+
+    /**
+     * On veut effacer le message de la télé
+     * donc on place le curseur après la map et le panneau de commandes,
+     * et on clear les 5 lignes suivantes.
+     */
+    void clearDialogAndMessage() {
+        int totalHeight = getTotalHeight() + 1;
+        for (int i = 0; i < 5; i++) {
+            moveCursorTo(0,totalHeight+i);
+            clearLine();
+        }
+        moveCursorTo(0,totalHeight);
+        saveCursorPosition();
+    }
+
+    /**
+     * Si le joueur quitte le dialogue, on veut que ce soit reset, aussi quand c'est fini.
+     */
+    void resetDialogState() {
+        currentDialogs = null;
+        currentGroupIndex = 0;
     }
 
     /**
@@ -762,42 +855,52 @@ class Main extends Program {
      * Pour avoir toutes les données nécessaires, on lit plusieurs fichiers :
      * - La charte de couleurs (`./assets/0-colors.csv`)
      * - Les téléportations possibles (`./assets/0-teleportations.csv`)
+     * - Les dialogyes (`./assets/0-dialogs.csv`)
      * Cette fonction ne sera appelée qu'une seule fois lors de l'initialisation du jeu.
      */
-    void initializeColors() {
+    void initializeColorsAndDialogs() {
         CSVFile colors = loadCSV(COLORS_PATH);
         CSVFile teleportations = loadCSV(TELEPORTATIONS_PATH);
+        CSVFile dialogs = loadCSV(DIALOGS_PATH);
         int nColors = rowCount(colors); // nombre de couleurs
         int nTeleportations = rowCount(teleportations); // nombre de pixels menant à une téléportation
-        int x,i,r,g,b,color,movX,movY,posX,posY; // toutes les données sous forme d'entier qu'on peut extraire des fichiers
-        String map; // map cible de la téléportation
+        int nDialogs = rowCount(dialogs);
+        int x,i,r,g,b,color; // toutes les données sous forme d'entier qu'on peut extraire des fichiers
 
         // Nous sommes obligés de redefinir COLORS
         // pour que nous ayons une liste de taille prédéfinie
         // car askip on peut pas utiliser ArrayList!
         COLORS = new Color[nColors-1];
+        DIALOGS = new Dialog[nDialogs-1];
 
-        for (int lig=1;lig<nColors;lig++) {
-            x = stringToInt(getCell(colors, lig, 1));
-            r = stringToInt(getCell(colors, lig, 2));
-            g = stringToInt(getCell(colors, lig, 3));
-            b = stringToInt(getCell(colors, lig, 4));
-            COLORS[lig-1] = newColor(r,g,b,x==1);
+        for (int y=1;y<nColors;y++) {
+            x = stringToInt(getCell(colors, y, 1));
+            r = stringToInt(getCell(colors, y, 2));
+            g = stringToInt(getCell(colors, y, 3));
+            b = stringToInt(getCell(colors, y, 4));
+            COLORS[y-1] = newColor(r,g,b,x==1);
         }
 
-        for (int lig=1;lig<nTeleportations;lig++) {
-            color = stringToInt(getCell(teleportations, lig, 0));
-            map = getCell(teleportations, lig, 1);
-            movX = stringToInt(getCell(teleportations, lig, 2));
-            movY = stringToInt(getCell(teleportations, lig, 3));
-            posX = stringToInt(getCell(teleportations, lig, 4));
-            posY = stringToInt(getCell(teleportations, lig, 5));
+        for (int y=1;y<nTeleportations;y++) {
+            color = stringToInt(getCell(teleportations, y, 0));
             COLORS[color].t = true;
-            COLORS[color].toMap = map;
-            COLORS[color].movX = movX;
-            COLORS[color].movY = movY;
-            COLORS[color].toX = posX;
-            COLORS[color].toY = posY;
+            COLORS[color].toMap = getCell(teleportations, y, 1);
+            COLORS[color].movX = stringToInt(getCell(teleportations, y, 2));
+            COLORS[color].movY = stringToInt(getCell(teleportations, y, 3));
+            COLORS[color].toX = stringToInt(getCell(teleportations, y, 4));
+            COLORS[color].toY = stringToInt(getCell(teleportations, y, 5));
+        }
+
+        for (int y=1;y<nDialogs;y++) {
+            color = stringToInt(getCell(dialogs, y, 1));
+            COLORS[color].i = true; // for easier detections near the player
+            Dialog dialog = new Dialog();
+            dialog.group = stringToInt(getCell(dialogs, y, 0));
+            dialog.colorIndex = color;
+            dialog.setMap(getCell(dialogs, y, 2).replaceAll("^\"(.*)\"$", "$1")); // removing the quotes
+            dialog.narratorName = getCell(dialogs, y, 3);
+            dialog.text = getCell(dialogs, y, 4).replaceAll("\\$", ","); // replacing the "$" by "," because iJava doesn't read CSV correctly
+            DIALOGS[y-1] = dialog;
         }
     }
 
@@ -1196,10 +1299,17 @@ class Main extends Program {
      */
     void writeMessage(String message) {
         Map map = getMapOfName(currentMap);
-        int height = getGUIHeight(map) + length(COMMANDS);
+        int height = getGUIHeight(map) + getNumberOfCommandsForCategory(CommandCategory.INTERACT);
         moveCursorTo(0,height+2);
         clearLine();
         println(message);
+    }
+
+    /**
+     * Affiche le message d'un dialogue.
+     */
+    void writeDialog(Dialog dialog) {
+        writeMessage(dialog.narratorName + " - " + dialog.text);
     }
 
     /*
