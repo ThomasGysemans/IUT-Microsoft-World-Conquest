@@ -22,30 +22,30 @@ group,colorIndex,map,narrator,text,random
 3,74,bibliotheque,,"(Ce motif de sol vous rappelle étrangement quelque chose... sous le tapis$ il est écrit "image.bmp". Curieux...)",0
 4,12,outside_bibliotheque,Baste,"Ce soir$ nous sommes réunis pour fêter l’arrivée d’un nouveau membre !",0
 4,12,outside_bibliotheque,,"(Tout le monde s'exclame)",0
-4,12,outside_bibliotheque,Manon,"Bienvenue$ (Joueur). Nous sommes tous amis et nous lutterons contre Microsoft$ ensemble !",0
+4,12,outside_bibliotheque,Manon,"Bienvenue$ à toi. Nous sommes tous amis et nous lutterons contre Microsoft$ ensemble !",0
 4,12,outside_bibliotheque,Thomas,"Oui ! Bienvenue chez nous ! Ici$ on est anti-Microsoft !",0
-4,12,outside_bibliotheque,,"(Vous allez parler au club)",0
+4,12,outside_bibliotheque,,"(Plusieurs personnes arrivent... Elles sont vêtues tout de noir)",0
+4,12,outside_bibliotheque,,"(Vous ne comprenez pas vraiment ce qu'il se passe$ tout est flou...)",0
+4,12,outside_bibliotheque,,"(Vous rentrez tous$ de force$ dans le grand camion... C'est sans nul doute Microsoft!)",0
 5,6,couloir,Rat,"Squeak Squeak !",0
 5,6,couloir,Toi,"Oh$ il est trop mignon ce rat ! Je vais l'appeler Maxime !",0
 6,50,couloir-6,Garde,"Tu ne peux pas passer ici !",0
 7,5,cellule-du-joueur,,"(Ce lavabo vous rappelle le mail que vous avez reçu appelant à vous laver)",0
-8,12,outside_bibliotheque,Baste,"J'ai trop de trucs sur ma to-do list ! La bataille navale de Thomas est en 114e position...",1
-8,12,outside_bibliotheque,Baste,"Le principe de l'UTF-8 est tellement simple$ c'est stupide !",1
-9,29,outside_bibliotheque,Pierre,"Regarde$ c'est trop drôle ! (Il vous montre le meme le moins drôle que vous avez vu de votre vie)",1
-9,29,outside_bibliotheque,Pierre,"Je suis encore dans le rouge ce mois-ci. Mon père ne m'a pas payé la pension alimentaire... Fait chier !",1
-9,29,outside_bibliotheque,Pierre,"J'ai acheté mon 6e briquet du mois ! Ça$ c'est orthonormé !",1
-9,29,outside_bibliotheque,Pierre,"Regarde$ regarde$ regarde$ j'ai fait la suite de Fibonacci en récursif ! T'en as de la chance$ t'es la 573ème personne à le voir !",1
-10,26,outside_bibliotheque,Tanguy,"J'ai joué à Simuland hier$ on a terminé la partie et j'ai fini dernier... Nom de Zeus !",1
-10,26,outside_bibliotheque,Tanguy,"J'ai faim. Viens au Sully avec moi$ s'il te plaît!!!!",1
-10,26,outside_bibliotheque,Tanguy,"Je suis la Vengeance.",1
-11,27,outside_bibliotheque,Elise,"(Elle transporte un étrange paquet... Il est énorme. Il est écrit "KS-52")",1
-11,27,outside_bibliotheque,Elise,"C'est quoi pour toi "boat-fishing" ?",1
-11,27,outside_bibliotheque,Elise,"Comment tu prononces "count" ? J'ai entendu quelqu'un le prononcer$ et je n'arrive plus à dormir..",1
-12,28,outside_bibliotheque,Thomas,"Tu veux venir coder avec moi ? Aide-moi à finir mon jeu$ s'il te plaît.",1
-12,28,outside_bibliotheque,Thomas,"J'ai pas dormi depuis 48h. Mais au moins$ mon jeu est fini...",1
-12,28,outside_bibliotheque,Thomas,"Tu sais combien de temps j'ai mis à venir jusqu'ici ? DEUX HEURES !",1
-12,28,outside_bibliotheque,Thomas,"J'attends toujours que Baste regarde ma bataille navale faite en BASH...",1
-13,14,outside_bibliotheque,Manon,"Vous voulez pas faire ma vaisselle ?",1
-13,14,outside_bibliotheque,Manon,"Ça fait quatre mois que j'ai demandé les APL$ je les ai toujours pas...",1
-13,14,outside_bibliotheque,Manon,"Venez faire mes courses avec moi !",1
-13,14,outside_bibliotheque,Manon,"Bon$ il est 23 heures$ mais ça vous dit pas d'aller à IKEA là ? En vrai ?",1
+8,29,outside_bibliotheque,Pierre,"Regarde$ c'est trop drôle ! (Il vous montre le meme le moins drôle que vous avez vu de votre vie)",1
+8,29,outside_bibliotheque,Pierre,"Je suis encore dans le rouge ce mois-ci. Mon père ne m'a pas payé la pension alimentaire... Fait chier !",1
+8,29,outside_bibliotheque,Pierre,"J'ai acheté mon 6e briquet du mois ! Ça$ c'est orthonormé !",1
+8,29,outside_bibliotheque,Pierre,"Regarde$ regarde$ regarde$ j'ai fait la suite de Fibonacci en récursif ! T'en as de la chance$ t'es la 573ème personne à le voir !",1
+9,26,outside_bibliotheque,Tanguy,"J'ai joué à Simuland hier$ on a terminé la partie et j'ai fini dernier... Nom de Zeus !",1
+9,26,outside_bibliotheque,Tanguy,"J'ai faim. Viens au Sully avec moi$ s'il te plaît!!!!",1
+9,26,outside_bibliotheque,Tanguy,"Je suis la Vengeance.",1
+10,27,outside_bibliotheque,Elise,"(Elle transporte un étrange paquet... Il est énorme. Il est écrit "KS-52")",1
+10,27,outside_bibliotheque,Elise,"C'est quoi pour toi "boat-fishing" ?",1
+10,27,outside_bibliotheque,Elise,"Comment tu prononces "count" ? J'ai entendu quelqu'un le prononcer$ et je n'arrive plus à dormir..",1
+11,28,outside_bibliotheque,Thomas,"Tu veux venir coder avec moi ? Aide-moi à finir mon jeu$ s'il te plaît.",1
+11,28,outside_bibliotheque,Thomas,"J'ai pas dormi depuis 48h. Mais au moins$ mon jeu est fini...",1
+11,28,outside_bibliotheque,Thomas,"Tu sais combien de temps j'ai mis à venir jusqu'ici ? DEUX HEURES !",1
+11,28,outside_bibliotheque,Thomas,"J'attends toujours que Baste regarde ma bataille navale faite en BASH...",1
+12,14,outside_bibliotheque,Manon,"Vous voulez pas faire ma vaisselle ?",1
+12,14,outside_bibliotheque,Manon,"Ça fait quatre mois que j'ai demandé les APL$ je les ai toujours pas...",1
+12,14,outside_bibliotheque,Manon,"Venez faire mes courses avec moi !",1
+12,14,outside_bibliotheque,Manon,"Bon$ il est 23 heures$ mais ça vous dit pas d'aller à IKEA là ? En vrai ?",1

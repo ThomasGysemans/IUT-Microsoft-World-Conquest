@@ -4,6 +4,7 @@
 tests/
 menu.txt
 menu-commandes.txt
+cours.txt
 archive/
 archive.zip
 make_archive.sh

@@ -60,6 +60,8 @@ class Main extends Program {
     final String COMMANDS_TITLE_PATH = "./assets/ascii/commands-title.txt";
     final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
     final String COLORS_PATH = "./assets/0-colors.csv"; // le fichier contenant toutes les couleurs
+    final String IMPORTANT_CHARACTERS_PATH = "./assets/0-important-characters.csv"; // les personnages importants de l'histoire dont il faut connaître la couleur
+    final String HELP_PATH = "./assets/0-baste-help.csv"; // l'aide du jeu, qu'on fait passé comme venant de Baste
     final String TELEPORTATIONS_PATH = "./assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
     final String DIALOGS_PATH = "./assets/0-dialogs.csv"; // le fichier contenant tous les dialogues des couleurs interactives
     final String COMMANDS_PATH = "./assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
@@ -83,6 +85,7 @@ class Main extends Program {
     Command[] COMMANDS = new Command[1];
     TVInfo[] TV_INFO = new TVInfo[1];
     Credit[] CREDITS = new Credit[1];
+    String[] HELP = new String[1];
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
@@ -105,6 +108,14 @@ class Main extends Program {
 
     boolean game_started = false;
 
+    // Toutes les variables globales liées à la progression du joueur
+    boolean LOCK_KEYS = false;
+    int PC_INDEX = 0;
+    int BASTE_INDEX = 0;
+    boolean MET_BASTE = false;
+    boolean KIDNAPPING = false;
+    boolean TIME_PASSING = false;
+
     void algorithm() {
         loadMainMenu();
         /*
@@ -115,7 +126,7 @@ class Main extends Program {
             // mais on arrive pas à le remettre en route.
             // Donc on fait en sorte ici que `hour` et `day`
             // ne soient incrémentés que lorsqu'on est sur la page de jeu
-            if (page == Page.GAME) {
+            if (page == Page.GAME && TIME_PASSING) {
                 hour++;
                 if (hour == 24) {
                     hour = 0;
@@ -180,10 +191,12 @@ class Main extends Program {
             print(repeat(" ", 20) + "Chargement...");
             printEmptyLines(2);
             initializeColorsAndDialogs();
+            initializeImportantCharacters();
             initializeAllMaps();
             initializeAllCommands();
             initializeAllTVInfo();
             initializeAllCredits();
+            initializeHelp();
 
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
@@ -280,6 +293,13 @@ class Main extends Program {
         } else if (page == Page.GAME) {
             // On ne peut pas utiliser un `switch` ici
             // car les case doivent être des constantes.
+            if (a == getKeyForCommandUID(KEY_QUIT)) {
+                loadMainMenu();
+            }
+            // Meaning the player's trying to press keys when he's not allowed to move
+            if (LOCK_KEYS) {
+                return;
+            }
             if (a == getKeyForCommandUID(KEY_WALK_TOP)) {
                 moveCursorUp();
             } else if (a == getKeyForCommandUID(KEY_WALK_BOTTOM)) {
@@ -288,11 +308,37 @@ class Main extends Program {
                 moveCursorToLeft();
             } else if (a == getKeyForCommandUID(KEY_WALK_RIGHT)) {
                 moveCursorToRight();
+            } else if (a == getKeyForCommandUID(KEY_CONTACT)) {
+                if (TIME_PASSING) { // meaning we met Baste and we got kidnapped, so we're in the cell
+                    writeHelp(HELP[0]);
+                }
             } else if (a == getKeyForCommandUID(KEY_INTERACT)) {
                 if (currentDialogs != null) {
                     clearDialogAndMessage();
                     currentGroupIndex++;
                     if (currentDialogs[currentGroupIndex] == null) {
+                        if (KIDNAPPING) {
+                            LOCK_KEYS = true;
+                            clearMyScreen();
+                            new Thread(() -> {
+                                try {
+                                    println("Vous vous faites kidnappés...");
+                                    Thread.sleep(2000);
+                                    println("Tout le monde a été emmené avec vous,");
+                                    Thread.sleep(2000);
+                                    println("mais vous remarquez que Baste vous a filé une oreillette discrètement...");
+                                    Thread.sleep(2000);
+                                    println("Peut-être que vous pourrez communiquer, en secret !");
+                                    Thread.sleep(4000);
+                                    TIME_PASSING = true;
+                                    teleportPlayerToNewMap("cellule-du-joueur", 0, 0);
+                                    LOCK_KEYS = false;
+                                } catch (Exception e) {
+                                    System.err.println(e);
+                                }
+                            }).start();
+                            return;
+                        }
                         resetDialogState();
                     } else {
                         writeDialog(currentDialogs[currentGroupIndex]);
@@ -331,6 +377,12 @@ class Main extends Program {
                             boolean found = false;
                             for (int y = 0, e = 0; y < length(DIALOGS); y++) {
                                 if (DIALOGS[y].group == DIALOGS[i].group) {
+                                    // Pour la progression du jeu
+                                    if (!MET_BASTE && DIALOGS[y].colorIndex == PC_INDEX && currentMap.equals("bibliotheque")) {
+                                        MET_BASTE = true;
+                                    } else if (MET_BASTE && !KIDNAPPING && DIALOGS[y].colorIndex == BASTE_INDEX && currentMap.equals("outside_bibliotheque")) {
+                                        KIDNAPPING = true;
+                                    }
                                     d[e++] = DIALOGS[y];
                                     found = true;
                                 } else {
@@ -366,8 +418,6 @@ class Main extends Program {
                         writeMessage("Cette personne a l'air occupé, ne la dérangez pas...");
                     }
                 }
-            } else if (a == getKeyForCommandUID(KEY_QUIT)) {
-                loadMainMenu();
             }
         } else if (page == Page.COMMANDS) {
             if (isWaitingForKeyInput) {
@@ -567,14 +617,14 @@ class Main extends Program {
         if (page != Page.GAME) {
             return;
         }
+        String[] allDays = new String[]{"Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"}; // jour 1 = vendredi
+        int currentDay = (4 + day) % 7;
         Map map = getMapOfName(currentMap);
         int height = getGUIHeight(map);
         saveCursorPosition();
         moveCursorTo(0,height-1); // entre la map et la ligne de "=" du dessous
-        // la largeur de la ligne change souvent (si hour < 10 par exemple)
-        // donc on risquerait de pas supprimer le texte précédent,
-        // alors on ajoute quelques d'espaces pour être sûr qu'on efface tout sur cette ligne.
-        println(hour + "h, jour " + (day + 1) + "    ");
+        clearLine();
+        println(allDays[currentDay] + " " + hour + "h, jour " + (day + 1));
         restoreCursorPosition();
     }
 
@@ -612,6 +662,13 @@ class Main extends Program {
             int shiftX = x - playerX; // le déplacement qui a été réalisé sur l'axe X
             int shiftY = y - playerY; // le déplacement qui a été réalisé sur l'axe Y
             if (shiftX == currentColor.movX && shiftY == currentColor.movY) {
+                // Si le joueur est dans la bibliothèque et n'a pas rencontré Baste,
+                // alors il ne doit pas en sortir. C'est propre à la progression du jeu.
+                // Puisqu'il spawn dans la bibliothèque et qu'il n'y a qu'une seule sortie,
+                // suffit de vérifier s'il a parlé à Baste.
+                if (!MET_BASTE) {
+                    return;
+                }
                 teleportPlayerToNewMap(currentColor.toMap, currentColor.toX, currentColor.toY);
                 return;
             }
@@ -931,6 +988,40 @@ class Main extends Program {
     }
 
     /**
+     * Initialise les variables importantes du jeu.
+     * En effet, pour progresser dans le jeu il va falloir interagir avec certaines personnes.
+     * Il faut donc savoir le numéro unique attribué à leur couleur.
+     * Ce fichier liste ces informations.
+     */
+    void initializeImportantCharacters() {
+        CSVFile file = loadCSV(IMPORTANT_CHARACTERS_PATH);
+        String name;
+        int colorIndex;
+        
+        for (int y=1;y<rowCount(file);y++) {
+            name = getCell(file, y, 1);
+            colorIndex = stringToInt(getCell(file, y, 0));
+            // Ces noms ne changeront jamais.
+            switch (name) {
+                case "PC": PC_INDEX = colorIndex; break;
+                case "TV": TV_INDEX = colorIndex; break;
+                case "Baste": BASTE_INDEX = colorIndex; break;
+            }
+        }
+    }
+
+    void initializeHelp() {
+        CSVFile file = loadCSV(HELP_PATH);
+        int count = rowCount(file);
+
+        HELP = new String[count-1];
+
+        for (int y=1;y<count;y++) {
+            HELP[y-1] = getCell(file, y, 0).replaceAll("\\$", ",");
+        }
+    }
+
+    /**
      * Pour gagner en fluidité lors du jeu, nous allons charger toutes les cartes du jeu lors de l'initialisation du jeu.
      * Toutes les cartes sont stockées dans "./assets/maps/".
      * Chaque carte est une matrice où chaque nombre est
@@ -1042,12 +1133,11 @@ class Main extends Program {
         int nInfo = rowCount(file);
 
         TV_INFO = new TVInfo[nInfo-1];
-        TV_INDEX = stringToInt(getCell(file, 1, 1)); // on veut l'info juste une fois
 
         for (int i=1;i<nInfo;i++) {
             TVInfo info = new TVInfo();
             info.day = stringToInt(getCell(file, i, 0));
-            info.text = getCell(file, i, 2);
+            info.text = getCell(file, i, 1);
             TV_INFO[i-1] = info;
         }
     }
@@ -1325,6 +1415,13 @@ class Main extends Program {
         } else {
             writeMessage(dialog.narratorName + " - " + dialog.text);    
         }
+    }
+
+    /**
+     * Affiche une aide du jeu, en passant ça comme une aide de Baste.
+     */
+    void writeHelp(String help) {
+        writeMessage("Baste - " + help);
     }
 
     /*
