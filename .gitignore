@@ -2,8 +2,6 @@
 .vscode/
 *.class
 tests/
-menu.txt
-menu-commandes.txt
 cours.txt
 archive/
 archive.zip

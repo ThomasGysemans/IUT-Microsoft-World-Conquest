@@ -1,0 +1,5 @@
+cours,question,answer1,answer2,answer3,goodAnswer
+"","Toto a 5 pommes. Titi lui en donne 1$ parce qu'il n'avait plus faim. Combien Toto a-t-il de pommes$ maintenant ?",5,6,4,2
+"","Toto a 5 pommes. Il en donne 4 à son bon ami Titi parce qu'il n'a pas besoin d'autant de pommes. Combien Toto a-t-il de pommes ?",4,3,0,1
+"","On promet à Tutu$ qui a 3 pommes$ de doubler ses pommes (*2) si elle donne son goûter (Paquet de Sultans) à Toto. Si elle le fait$ combien a-t-elle de pommes ?",6,5,3,1
+"","J'ai 13 chocolats que je peux vous partager. Sachant que vous êtes 6 ici$ combien puis-je vous en donner chacun et en restera-t-il ?",Nous en donner 2 chacun et il en restera 1,Nous en donner 3 chacun et il n'en restera pas,Nous en donner 2 chacun et il n'en restera pas,1

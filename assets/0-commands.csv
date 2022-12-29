@@ -5,4 +5,5 @@ En bas,Marcher,18,BOTTOM
 En haut,Marcher,17,TOP
 Contacter Baste,Interaction,98,CONTACT
 Interagir,Interaction,102,INTERACT
+Écouter le cours,Interaction,101,START_LESSON
 Quitter,Système,113,QUIT

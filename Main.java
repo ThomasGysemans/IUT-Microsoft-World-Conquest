@@ -4,11 +4,13 @@ import extensions.CSVFile;
 /**
  * Microsoft World Conquest ft. Julien Baste
  * Le jeu RPG dans le Terminal absolument magnifique.
- * Il vous faudra une RTX 4070 et un processeur Ryzen 7950X au minimum pour l'exécuter. 
+ * Il vous faudra une RTX 4070 et un processeur Ryzen 7950X au minimum pour l'exécuter.
+ * Plus sérieusement, un bon processeur peut éviter des problèmes d'affichage quand ce dernier a trop de choses à afficher en simultané sur des threads différents.
  * @author Thomas Gysemans, Manon Leclercq, S1-C, 2022
  */
 class Main extends Program {
     final String VERSION = "alpha";
+    final String[] DAYS = new String[]{"Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"};
     final int GUI_HORIZONTAL_MARGIN = 2;
     final int GUI_VERTICAL_MARGIN = 1;
 
@@ -30,6 +32,7 @@ class Main extends Program {
     // Il faut donc bien faire attention à ce que les noms correspondent dans le fichier CSV.
     final String KEY_INTERACT = "INTERACT";
     final String KEY_CONTACT = "CONTACT";
+    final String KEY_START_LESSON = "START_LESSON";
     final String KEY_QUIT = "QUIT";
     final String KEY_WALK_TOP = "TOP";
     final String KEY_WALK_RIGHT = "RIGHT";
@@ -38,8 +41,8 @@ class Main extends Program {
     // Si on utilisait vraiment Java sans restrictions,
     // on aurait fait les choses autrement, et d'une meilleure façon...
     final int NUMBER_OF_WALKING_COMMANDS = 4;
-    final int NUMBER_OF_INTERACTION_COMMANDS = 2;
-    final int NUMBER_OF_SYSTEM = 1;
+    final int NUMBER_OF_INTERACTION_COMMANDS = 3;
+    final int NUMBER_OF_SYSTEM_COMMANDS = 1;
 
     // Un booléan pour savoir quand l'utilisateur a terminé de se déplacer ou d'intéragir.
     // Une valeur à `true` stoppe la saisie si elle est déjà démarrée, et arrête le programme.
@@ -66,11 +69,15 @@ class Main extends Program {
     final String DIALOGS_PATH = "./assets/0-dialogs.csv"; // le fichier contenant tous les dialogues des couleurs interactives
     final String COMMANDS_PATH = "./assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
     final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
+    final String ENGLISH_LESSONS_PATH = "./assets/lessons/english.csv";
+    final String FRENCH_LESSONS_PATH = "./assets/lessons/french.csv";
+    final String MATHS_LESSONS_PATH = "./assets/lessons/maths.csv";
+    final String HISTORY_LESSONS_PATH = "./assets/lessons/history.csv";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
-    int playerX = 0; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
-    int playerY = 0; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
+    int playerX = 18; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
+    int playerY = 9; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
     int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
 
     // On veut stocker les informations au préalable
@@ -86,6 +93,12 @@ class Main extends Program {
     TVInfo[] TV_INFO = new TVInfo[1];
     Credit[] CREDITS = new Credit[1];
     String[] HELP = new String[1];
+    Lesson[] ENGLISH_LESSONS = new Lesson[1];
+    Lesson[] FRENCH_LESSONS = new Lesson[1];
+    Lesson[] MATHS_LESSONS = new Lesson[1];
+    Lesson[] HISTORY_LESSONS = new Lesson[1];
+    int selectedLessonAnswer = 1;
+    int selectedLessonAnswerPosY = 0;
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
@@ -115,6 +128,9 @@ class Main extends Program {
     boolean MET_BASTE = false;
     boolean KIDNAPPING = false;
     boolean TIME_PASSING = false;
+    Lesson CURRENT_LESSON = null;
+    boolean WAITING_FOR_ANSWER_TO_LESSON = false;
+    int LAST_LESSON_INDEX = -1;
 
     void algorithm() {
         loadMainMenu();
@@ -126,7 +142,7 @@ class Main extends Program {
             // mais on arrive pas à le remettre en route.
             // Donc on fait en sorte ici que `hour` et `day`
             // ne soient incrémentés que lorsqu'on est sur la page de jeu
-            if (page == Page.GAME && TIME_PASSING) {
+            if (page == Page.GAME && TIME_PASSING && KIDNAPPING) {
                 hour++;
                 if (hour == 24) {
                     hour = 0;
@@ -197,6 +213,7 @@ class Main extends Program {
             initializeAllTVInfo();
             initializeAllCredits();
             initializeHelp();
+            initializeAllLessons();
 
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
@@ -294,20 +311,73 @@ class Main extends Program {
             // On ne peut pas utiliser un `switch` ici
             // car les case doivent être des constantes.
             if (a == getKeyForCommandUID(KEY_QUIT)) {
+                resetState();
                 loadMainMenu();
             }
             // Meaning the player's trying to press keys when he's not allowed to move
             if (LOCK_KEYS) {
                 return;
             }
+            if (CURRENT_LESSON != null) {
+                if (WAITING_FOR_ANSWER_TO_LESSON) {
+                    switch (a) {
+                        case ENTER_KEY:
+                            print("\033[1A");
+                            clearLine(); // on supprime la phrase explicative
+                            if (selectedLessonAnswer == CURRENT_LESSON.goodAnswer) {
+                                println("Bravo ! C'est la bonne réponse.");
+                            } else {
+                                println("Faux ! La bonne réponse était la réponse " + CURRENT_LESSON.goodAnswer + ".");
+                            }
+                            resetState();
+                            LAST_LESSON_INDEX = day/7;
+                            break;
+                        case TOP_ARROW_KEY:
+                            if (selectedLessonAnswer > 1) {
+                                saveCursorPosition();
+                                int height = getTotalHeight();
+                                moveCursorTo(4,height+3+selectedLessonAnswer);
+                                print(" ");
+                                selectedLessonAnswer--;
+                                moveCursorTo(4,height+3+selectedLessonAnswer); // 3 car emptyLine + question + emptyLine
+                                print("*");
+                                restoreCursorPosition();
+                            }
+                            break;
+                        case BOTTOM_ARROW_KEY:
+                            if (selectedLessonAnswer < 3) {
+                                saveCursorPosition();
+                                int height = getTotalHeight();
+                                moveCursorTo(4,height+3+selectedLessonAnswer);
+                                print(" ");
+                                selectedLessonAnswer++;
+                                moveCursorTo(4,height+3+selectedLessonAnswer); // 3 car emptyLine + question + emptyLine
+                                print("*");
+                                restoreCursorPosition();
+                            }
+                            break;
+                    }
+                } else if (a == getKeyForCommandUID(KEY_START_LESSON)) {
+                    clearDialogAndMessage();
+                    writeMessage(CURRENT_LESSON.question);
+                    printEmptyLine();
+                    println("  [*] " + CURRENT_LESSON.answers[0]);
+                    println("  [ ] " + CURRENT_LESSON.answers[1]);
+                    println("  [ ] " + CURRENT_LESSON.answers[2]);
+                    printEmptyLine();
+                    println("Appuie sur Entrer pour confirmer ton choix, et sur les flèches du clavier pour changer la sélection.");
+                    WAITING_FOR_ANSWER_TO_LESSON = true;
+                }
+                return;
+            }
             if (a == getKeyForCommandUID(KEY_WALK_TOP)) {
-                moveCursorUp();
+                movePlayerUp();
             } else if (a == getKeyForCommandUID(KEY_WALK_BOTTOM)) {
-                moveCursorDown();
+                movePlayerDown();
             } else if (a == getKeyForCommandUID(KEY_WALK_LEFT)) {
-                moveCursorToLeft();
+                movePlayerToLeft();
             } else if (a == getKeyForCommandUID(KEY_WALK_RIGHT)) {
-                moveCursorToRight();
+                movePlayerToRight();
             } else if (a == getKeyForCommandUID(KEY_CONTACT)) {
                 if (TIME_PASSING) { // meaning we met Baste and we got kidnapped, so we're in the cell
                     writeHelp(HELP[0]);
@@ -317,7 +387,9 @@ class Main extends Program {
                     clearDialogAndMessage();
                     currentGroupIndex++;
                     if (currentDialogs[currentGroupIndex] == null) {
-                        if (KIDNAPPING) {
+                        if (MET_BASTE && !KIDNAPPING && currentDialogs[currentGroupIndex-1].colorIndex == BASTE_INDEX && currentMap.equals("outside_bibliotheque")) {
+                            TIME_PASSING = false; // just in case the player left the game and came back between the beginning of the dialog and the kidnapping
+                            KIDNAPPING = true;
                             LOCK_KEYS = true;
                             clearMyScreen();
                             new Thread(() -> {
@@ -380,8 +452,6 @@ class Main extends Program {
                                     // Pour la progression du jeu
                                     if (!MET_BASTE && DIALOGS[y].colorIndex == PC_INDEX && currentMap.equals("bibliotheque")) {
                                         MET_BASTE = true;
-                                    } else if (MET_BASTE && !KIDNAPPING && DIALOGS[y].colorIndex == BASTE_INDEX && currentMap.equals("outside_bibliotheque")) {
-                                        KIDNAPPING = true;
                                     }
                                     d[e++] = DIALOGS[y];
                                     found = true;
@@ -418,6 +488,40 @@ class Main extends Program {
                         writeMessage("Cette personne a l'air occupé, ne la dérangez pas...");
                     }
                 }
+            } else if (a == getKeyForCommandUID(KEY_START_LESSON)) {
+                if (!currentMap.equals("classroom")) {
+                    return;
+                }
+
+                clearDialogAndMessage();
+                
+                int index = day/7;
+                if (index == LAST_LESSON_INDEX) {
+                    writeMessage("Le cours est terminé.");
+                    return;
+                }
+
+                String teacher;
+                if (day % 7 == 1) { // Tuesday
+                    CURRENT_LESSON = ENGLISH_LESSONS[index];
+                    teacher = "Professeur d'anglais";
+                } else if (day % 7 == 3) { // Thursday
+                    CURRENT_LESSON = HISTORY_LESSONS[index];
+                    teacher = "Professeur d'histoire";
+                } else if (day % 7 == 5) { // Saturday
+                    CURRENT_LESSON = FRENCH_LESSONS[index];
+                    teacher = "Professeur de français";
+                } else if (day % 7 == 6) { // Sunday
+                    CURRENT_LESSON = MATHS_LESSONS[index];
+                    teacher = "Professeur de maths";
+                } else {
+                    writeMessage("Il n'y a pas cours aujourd'hui.");
+                    return;
+                }
+
+                TIME_PASSING = false;
+                writeMessage(teacher + " - " + CURRENT_LESSON.lesson);
+                println("\nAppuie sur [" + getCommandOfUID(KEY_START_LESSON).getCurrentChar() + "] pour continuer");
             }
         } else if (page == Page.COMMANDS) {
             if (isWaitingForKeyInput) {
@@ -576,7 +680,7 @@ class Main extends Program {
             }
             print("*");
         } else {
-            if (selectedCommand == NUMBER_OF_WALKING_COMMANDS + 1 || selectedCommand == NUMBER_OF_WALKING_COMMANDS + NUMBER_OF_INTERACTION_COMMANDS + NUMBER_OF_SYSTEM) {
+            if (selectedCommand == NUMBER_OF_WALKING_COMMANDS + 1 || selectedCommand == NUMBER_OF_WALKING_COMMANDS + NUMBER_OF_INTERACTION_COMMANDS + NUMBER_OF_SYSTEM_COMMANDS) {
                 print(repeat("\033[1A", 3));
                 selectedCommandPosY -= 3;
             } else {
@@ -617,14 +721,13 @@ class Main extends Program {
         if (page != Page.GAME) {
             return;
         }
-        String[] allDays = new String[]{"Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"}; // jour 1 = vendredi
         int currentDay = (4 + day) % 7;
         Map map = getMapOfName(currentMap);
         int height = getGUIHeight(map);
         saveCursorPosition();
         moveCursorTo(0,height-1); // entre la map et la ligne de "=" du dessous
         clearLine();
-        println(allDays[currentDay] + " " + hour + "h, jour " + (day + 1));
+        println(DAYS[currentDay] + " " + hour + "h, jour " + (day + 1));
         restoreCursorPosition();
     }
 
@@ -836,12 +939,24 @@ class Main extends Program {
      */
     void clearDialogAndMessage() {
         int totalHeight = getTotalHeight() + 1;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             moveCursorTo(0,totalHeight+i);
             clearLine();
         }
         moveCursorTo(0,totalHeight);
         saveCursorPosition();
+    }
+
+    /**
+     * Réinitialise toutes les variables globales propre à un état spécifique, sachant que l'on peut quitter le jeu à tout moment.
+     */
+    void resetState() {
+        resetDialogState();
+        CURRENT_LESSON = null;
+        TIME_PASSING = true;
+        WAITING_FOR_ANSWER_TO_LESSON = false;
+        selectedLessonAnswer = 1;
+        selectedCommandPosY = 0;
     }
 
     /**
@@ -867,19 +982,19 @@ class Main extends Program {
         print("\033[u");
     }
 
-    void moveCursorUp() {
+    void movePlayerUp() {
         displayPlayer(playerX, playerY-1);
     }
 
-    void moveCursorDown() {
+    void movePlayerDown() {
         displayPlayer(playerX, playerY+1);
     }
 
-    void moveCursorToLeft() {
+    void movePlayerToLeft() {
         displayPlayer(playerX-1, playerY);
     }
 
-    void moveCursorToRight() {
+    void movePlayerToRight() {
         displayPlayer(playerX+1, playerY);
     }
 
@@ -1161,7 +1276,43 @@ class Main extends Program {
     }
 
     /**
-     * Lis un fichier CSV pour le convertir en une liste de nombres utilisable dans le programme.
+     * Initialise tous les cours dispensés dans la salle de classe à intervalles réguliers.
+     */
+    void initializeAllLessons() {
+        CSVFile english_file = loadCSV(ENGLISH_LESSONS_PATH);
+        CSVFile french_file = loadCSV(FRENCH_LESSONS_PATH);
+        CSVFile maths_file = loadCSV(MATHS_LESSONS_PATH);
+        CSVFile history_file = loadCSV(HISTORY_LESSONS_PATH);
+        int nEnglish = rowCount(english_file);
+        int nFrench = rowCount(french_file);
+        int nMaths = rowCount(maths_file);
+        int nHistory = rowCount(history_file);
+
+        ENGLISH_LESSONS = new Lesson[nEnglish];
+        FRENCH_LESSONS = new Lesson[nFrench];
+        MATHS_LESSONS = new Lesson[nMaths];
+        HISTORY_LESSONS = new Lesson[nHistory];
+
+        for (int y=1;y<nEnglish;y++) ENGLISH_LESSONS[y-1] = createLesson(getCell(english_file, y, 0), getCell(english_file, y, 1), new String[]{getCell(english_file, y, 2), getCell(english_file, y, 3), getCell(english_file, y, 4)}, stringToInt(getCell(english_file, y, 5)));
+        for (int y=1;y<nFrench;y++) FRENCH_LESSONS[y-1] = createLesson(getCell(french_file, y, 0), getCell(french_file, y, 1), new String[]{getCell(french_file, y, 2), getCell(french_file, y, 3), getCell(french_file, y, 4)}, stringToInt(getCell(french_file, y, 5)));
+        for (int y=1;y<nMaths;y++) MATHS_LESSONS[y-1] = createLesson(getCell(maths_file, y, 0), getCell(maths_file, y, 1), new String[]{getCell(maths_file, y, 2), getCell(maths_file, y, 3), getCell(maths_file, y, 4)}, stringToInt(getCell(maths_file, y, 5)));
+        for (int y=1;y<nHistory;y++) HISTORY_LESSONS[y-1] = createLesson(getCell(history_file, y, 0), getCell(history_file, y, 1), new String[]{getCell(history_file, y, 2), getCell(history_file, y, 3), getCell(history_file, y, 4)}, stringToInt(getCell(history_file, y, 5)));
+    }
+
+    /**
+     * Fake constructor of the Lesson OBJECT
+     */
+    Lesson createLesson(String lesson, String question, String[] answers, int goodAnswer) {
+        Lesson l = new Lesson();
+        l.lesson = length(lesson.replaceAll("\"", "")) == 0 ? "Interrogation surprise !" : lesson.replaceAll("\\$", ",");
+        l.question = question.replaceAll("\\$", ",");
+        l.answers = answers;
+        l.goodAnswer = goodAnswer;
+        return l;
+    }
+
+    /**
+     * Lis un fichier CSV pour le convertir en une matrice.
      * @param file Le fichier CSV chargé.
      * @return Une grille où chaque élément est le pixel d'une carte.
      */
@@ -1248,7 +1399,14 @@ class Main extends Program {
             if (COMMANDS[i].category == CommandCategory.INTERACT) {
                 if (COMMANDS[i].uid.equals(KEY_INTERACT) && nearestInteractiveCell == -1) {
                     clearLine();
-                    print("\r\n"); // just to make sure that the cursor goes back to the right place afterwards
+                    continue;
+                }
+                if (COMMANDS[i].uid.equals(KEY_START_LESSON) && (CURRENT_LESSON != null || !currentMap.equals("classroom"))) {
+                    clearLine();
+                    continue;
+                }
+                if (COMMANDS[i].uid.equals(KEY_CONTACT) && !TIME_PASSING) {
+                    clearLine();
                     continue;
                 }
                 println("   [" + COMMANDS[i].getCurrentChar() + "] " + COMMANDS[i].name + "   ");
