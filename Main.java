@@ -83,20 +83,18 @@ class Main extends Program {
     // On veut stocker les informations au préalable
     // Pour éviter de charger les fichiers, et de les recharger quand nécessaire,
     // on charge tout une seule fois avant le début du jeu.
-    // Problème : on ne sait pas en avance le nombre de couleurs ni le nombre de cartes.
-    // On initialise le bordel ici, puis on changera ça après.
-    // Pour notre plus grand malheur, ArrayList n'est pas autorisée
-    Color[] COLORS = new Color[1];
-    Dialog[] DIALOGS = new Dialog[1];
-    Map[] MAPS = new Map[1]; // lol avant on avait int[][][] MAPS = new int[1][1][1], quel délire !
-    Command[] COMMANDS = new Command[1];
-    TVInfo[] TV_INFO = new TVInfo[1];
-    Credit[] CREDITS = new Credit[1];
-    String[] HELP = new String[1];
-    Lesson[] ENGLISH_LESSONS = new Lesson[1];
-    Lesson[] FRENCH_LESSONS = new Lesson[1];
-    Lesson[] MATHS_LESSONS = new Lesson[1];
-    Lesson[] HISTORY_LESSONS = new Lesson[1];
+    // Pour notre plus grand malheur, ArrayList n'est pas autorisée (askip)
+    Color[] COLORS;
+    Dialog[] DIALOGS;
+    Map[] MAPS; // lol avant on avait int[][][] MAPS quel délire !
+    Command[] COMMANDS;
+    TVInfo[] TV_INFO;
+    Credit[] CREDITS;
+    Help[] HELP;
+    Lesson[] ENGLISH_LESSONS;
+    Lesson[] FRENCH_LESSONS;
+    Lesson[] MATHS_LESSONS;
+    Lesson[] HISTORY_LESSONS;
     int selectedLessonAnswer = 1;
     int selectedLessonAnswerPosY = 0;
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
@@ -104,6 +102,8 @@ class Main extends Program {
 
     Dialog[] currentDialogs = null;
     int currentGroupIndex = 0; // l'indice du message du groupe actuel dans `currentDialogs`
+    Help[] currentHelp = null;
+    int currentHelpIndex = 0;
 
     final int DAY_DELAY = 2*60; // nombre de secondes (in-game) pour un jour
     final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
@@ -123,11 +123,12 @@ class Main extends Program {
 
     // Toutes les variables globales liées à la progression du joueur
     boolean LOCK_KEYS = false;
+    boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
     int PC_INDEX = 0;
     int BASTE_INDEX = 0;
     boolean MET_BASTE = false;
     boolean KIDNAPPING = false;
-    boolean TIME_PASSING = false;
+    boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
     Lesson CURRENT_LESSON = null;
     boolean WAITING_FOR_ANSWER_TO_LESSON = false;
     int LAST_LESSON_INDEX = -1;
@@ -380,7 +381,30 @@ class Main extends Program {
                 movePlayerToRight();
             } else if (a == getKeyForCommandUID(KEY_CONTACT)) {
                 if (TIME_PASSING) { // meaning we met Baste and we got kidnapped, so we're in the cell
-                    writeHelp(HELP[0]);
+                    if (currentHelp != null) {
+                        currentHelpIndex++;
+                        if (currentHelpIndex < length(currentHelp)) {
+                            writeHelp(currentHelp[currentHelpIndex]);
+                            printEmptyLine();
+                            if (currentHelpIndex == length(currentHelp) - 1) {
+                                println("Appuyez sur [" + getCommandOfUID(KEY_CONTACT).getCurrentChar() + "] pour terminer.");
+                            } else {
+                                println("Appuyez sur [" + getCommandOfUID(KEY_CONTACT).getCurrentChar() + "] pour continuer.");
+                            }
+                        } else if (currentHelpIndex == length(currentHelp)) {
+                            clearDialogAndMessage();
+                            currentHelp = null;
+                            currentHelpIndex = 0;
+                            COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = true;
+                        }
+                    } else {
+                        currentHelp = getHelpOfGroup(0);
+                        writeHelp(currentHelp[0]);
+                        if (length(currentHelp) > 1) {
+                            printEmptyLine();
+                            println("Appuyez sur [" + getCommandOfUID(KEY_CONTACT).getCurrentChar() + "] pour continuer.");
+                        }
+                    }
                 }
             } else if (a == getKeyForCommandUID(KEY_INTERACT)) {
                 if (currentDialogs != null) {
@@ -771,6 +795,8 @@ class Main extends Program {
                 // suffit de vérifier s'il a parlé à Baste.
                 if (!MET_BASTE) {
                     return;
+                } else if (!COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME && currentMap.equals("cellule-du-joueur")) {
+                    return;
                 }
                 teleportPlayerToNewMap(currentColor.toMap, currentColor.toX, currentColor.toY);
                 return;
@@ -957,6 +983,8 @@ class Main extends Program {
         WAITING_FOR_ANSWER_TO_LESSON = false;
         selectedLessonAnswer = 1;
         selectedCommandPosY = 0;
+        currentHelp = null;
+        currentHelpIndex = 0;
     }
 
     /**
@@ -1129,10 +1157,13 @@ class Main extends Program {
         CSVFile file = loadCSV(HELP_PATH);
         int count = rowCount(file);
 
-        HELP = new String[count-1];
+        HELP = new Help[count-1];
 
         for (int y=1;y<count;y++) {
-            HELP[y-1] = getCell(file, y, 0).replaceAll("\\$", ",");
+            Help help = new Help();
+            help.group = stringToInt(getCell(file, y, 0));
+            help.text = getCell(file, y, 1).replaceAll("\\$", ",");
+            HELP[y-1] = help;
         }
     }
 
@@ -1578,8 +1609,28 @@ class Main extends Program {
     /**
      * Affiche une aide du jeu, en passant ça comme une aide de Baste.
      */
-    void writeHelp(String help) {
-        writeMessage("Baste - " + help);
+    void writeHelp(Help help) {
+        writeMessage("Baste - " + help.text);
+    }
+
+    /**
+     * Retourne l'aide de Baste divisé en plusieurs messages pour que ce soit plus ergonomique.
+     * @param g Le numéro du groupe auquel appartiennent les messages à afficher, dans l'ordre.
+     * @return L'aide de Baste.
+     */
+    Help[] getHelpOfGroup(int g) {
+        Help[] help = new Help[20]; // on devrait faire `ArrayList<Help> help = new ArrayList<>();` c'est honteux
+        int y = 0;
+        for (int i = 0; i < length(HELP); i++) {
+            if (HELP[i].group == g) {
+                help[y++] = HELP[i];
+            }
+        }
+        Help[] copy = new Help[y];
+        for (int i = 0; i < y; i++) {
+            copy[i] = help[i];
+        }
+        return copy;
     }
 
     /*
