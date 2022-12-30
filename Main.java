@@ -122,8 +122,8 @@ class Main extends Program {
     boolean game_started = false;
 
     // Toutes les variables globales liées à la progression du joueur
-    boolean LOCK_KEYS = false;
     boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
+    boolean LOCK_KEYS = false;
     boolean WANTS_TO_SLEEP = false;
     int PC_INDEX = 0;
     int BASTE_INDEX = 0;
@@ -401,7 +401,8 @@ class Main extends Program {
                         }
                     } else {
                         currentHelp = getHelpOfGroup(0);
-                        writeHelp(currentHelp[0]);
+                        currentHelpIndex = (COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME ? 3 : 0);
+                        writeHelp(currentHelp[currentHelpIndex]);
                         if (length(currentHelp) > 1) {
                             printEmptyLine();
                             println("Appuyez sur [" + getCommandOfUID(KEY_CONTACT).getCurrentChar() + "] pour continuer.");
