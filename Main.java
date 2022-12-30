@@ -75,9 +75,9 @@ class Main extends Program {
     final String HISTORY_LESSONS_PATH = "./assets/lessons/history.csv";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
-    String currentMap = "bibliotheque"; // la carte actuellement affichée
-    int playerX = 18; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
-    int playerY = 9; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
+    String currentMap = "cellule-du-joueur"; // la carte actuellement affichée
+    int playerX = 1; // la position en X du joueur, par défaut ça devrait être 18 dans la bibliothèque
+    int playerY = 1; // la position en Y du joueur, par défaut ça devrait 9 dans la bibliothèque
     int nearestInteractiveCell = -1; // obtiens la valeur de la couleur si le joueur est proche d'une cellule interactive (redéfinie quand on utilise `hasInteractiveCellNearPlayer` dans `displayPlayer`)
 
     // On veut stocker les informations au préalable
@@ -123,12 +123,14 @@ class Main extends Program {
 
     // Toutes les variables globales liées à la progression du joueur
     boolean LOCK_KEYS = false;
-    boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
+    boolean TIME_PASSING = true; // dans le prologue, le temps ne passe pas, car il y a une échéance
+    boolean WANTS_TO_SLEEP = false;
     int PC_INDEX = 0;
     int BASTE_INDEX = 0;
-    boolean MET_BASTE = false;
-    boolean KIDNAPPING = false;
-    boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
+    int BED_INDEX = 0;
+    boolean MET_BASTE = true;
+    boolean KIDNAPPING = true;
+    boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = true; // une fois dans la prison
     Lesson CURRENT_LESSON = null;
     boolean WAITING_FOR_ANSWER_TO_LESSON = false;
     int LAST_LESSON_INDEX = -1;
@@ -455,6 +457,38 @@ class Main extends Program {
                     }
                     printEmptyLine();
                     println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                } else if (nearestInteractiveCell == BED_INDEX) {
+                    if (WANTS_TO_SLEEP) {
+                        // On revérifie l'heure ici car il peut se passer plusieurs heures 
+                        // entre la première interaction et la confirmation
+                        if (hour > 19 || hour < 9) {
+                            clearMyScreen();
+                            new Thread(() -> {
+                                try {
+                                    println("Vous faites de beau rêve concernant du BASH...");
+                                    hour = 9;
+                                    day++;
+                                    WANTS_TO_SLEEP = false;
+                                    Thread.sleep(2000);
+                                    clearMyScreen();
+                                    displayMap();
+                                    printPlayer(playerX,playerY);
+                                } catch (Exception e) {
+                                    System.err.println(e);
+                                }
+                            }).start();
+                        } else {
+                            WANTS_TO_SLEEP = false;
+                            writeMessage("Tu ne peux dormir que la nuit.");
+                        }
+                    } else {
+                        if (hour > 19 || hour < 9) {
+                            writeMessage("Il s'agit de votre lit. Vous voulez dormir ? Appuyez sur [" + getCommandOfUID(KEY_INTERACT).getCurrentChar() + "] pour dormir.");
+                            WANTS_TO_SLEEP = true;
+                        } else {
+                            writeMessage("Vous ne pouvez pas dormir à cette heure-ci.");
+                        }
+                    }
                 } else {
                     boolean found_one_but_different_map = false;
                     for (int i = 0; i < length(DIALOGS); i++) {
@@ -859,6 +893,7 @@ class Main extends Program {
 
         clearDialogAndMessage();
         resetDialogState();
+        WANTS_TO_SLEEP = false;
     }
 
     /**
@@ -1149,6 +1184,7 @@ class Main extends Program {
                 case "PC": PC_INDEX = colorIndex; break;
                 case "TV": TV_INDEX = colorIndex; break;
                 case "Baste": BASTE_INDEX = colorIndex; break;
+                case "Bed": BED_INDEX = colorIndex; break;
             }
         }
     }
