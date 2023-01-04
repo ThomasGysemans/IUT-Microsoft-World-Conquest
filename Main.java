@@ -57,22 +57,22 @@ class Main extends Program {
     int selectedCommandPosY = 0;
     boolean isWaitingForKeyInput = false; // true si on attend que l'utilisateur entre une nouvelle touche pour réassigner une commande 
 
-    final String CREDITS_TITLE_PATH = "./assets/ascii/credits-title.txt";
-    final String CREDITS_PATH = "./assets/credits.csv";
-    final String GAME_MAIN_TITLE_PATH = "./assets/ascii/main-title.txt";
-    final String COMMANDS_TITLE_PATH = "./assets/ascii/commands-title.txt";
-    final String MAPS_PATH = "./assets/maps/"; // le fichier contenant toutes les cartes
-    final String COLORS_PATH = "./assets/0-colors.csv"; // le fichier contenant toutes les couleurs
-    final String IMPORTANT_CHARACTERS_PATH = "./assets/0-important-characters.csv"; // les personnages importants de l'histoire dont il faut connaître la couleur
-    final String HELP_PATH = "./assets/0-baste-help.csv"; // l'aide du jeu, qu'on fait passé comme venant de Baste
-    final String TELEPORTATIONS_PATH = "./assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
-    final String DIALOGS_PATH = "./assets/0-dialogs.csv"; // le fichier contenant tous les dialogues des couleurs interactives
-    final String COMMANDS_PATH = "./assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
-    final String TVINFO_PATH = "./assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
-    final String ENGLISH_LESSONS_PATH = "./assets/lessons/english.csv";
-    final String FRENCH_LESSONS_PATH = "./assets/lessons/french.csv";
-    final String MATHS_LESSONS_PATH = "./assets/lessons/maths.csv";
-    final String HISTORY_LESSONS_PATH = "./assets/lessons/history.csv";
+    final String CREDITS_TITLE_PATH = "../assets/ascii/credits-title.txt";
+    final String CREDITS_PATH = "../assets/credits.csv";
+    final String GAME_MAIN_TITLE_PATH = "../assets/ascii/main-title.txt";
+    final String COMMANDS_TITLE_PATH = "../assets/ascii/commands-title.txt";
+    final String MAPS_PATH = "../assets/maps/"; // le fichier contenant toutes les cartes
+    final String COLORS_PATH = "../assets/0-colors.csv"; // le fichier contenant toutes les couleurs
+    final String IMPORTANT_CHARACTERS_PATH = "../assets/0-important-characters.csv"; // les personnages importants de l'histoire dont il faut connaître la couleur
+    final String HELP_PATH = "../assets/0-baste-help.csv"; // l'aide du jeu, qu'on fait passé comme venant de Baste
+    final String TELEPORTATIONS_PATH = "../assets/0-teleportations.csv"; // le fichier contenant toutes les passerelles entre les maps
+    final String DIALOGS_PATH = "../assets/0-dialogs.csv"; // le fichier contenant tous les dialogues des couleurs interactives
+    final String COMMANDS_PATH = "../assets/0-commands.csv"; // le fichier contenant toutes les commandes par défaut
+    final String TVINFO_PATH = "../assets/0-tv.csv"; // le fichier contenant toutes les infos diffusées par la télé de la cellule du joueur
+    final String ENGLISH_LESSONS_PATH = "../assets/lessons/english.csv";
+    final String FRENCH_LESSONS_PATH = "../assets/lessons/french.csv";
+    final String MATHS_LESSONS_PATH = "../assets/lessons/maths.csv";
+    final String HISTORY_LESSONS_PATH = "../assets/lessons/history.csv";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
@@ -122,18 +122,38 @@ class Main extends Program {
     boolean game_started = false;
 
     // Toutes les variables globales liées à la progression du joueur
+    // ----
     boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
     boolean LOCK_KEYS = false;
     boolean WANTS_TO_SLEEP = false;
+    // Ces deux variables sont là pour écouter et recevoir l'input de l'utilisateur,
+    // quand on veut qu'il écrive quelque chose (une commande BASH par exemple).
+    boolean WAITING_FOR_USER_INPUT = false;
+    String INPUT = ""; // on enregistre ce qu'il écrit ici
+    boolean DISCOVERED_CONTROL_PC = false;
+    boolean HAS_PASSWORD = false;
+
     int PC_INDEX = 0;
     int BASTE_INDEX = 0;
     int BED_INDEX = 0;
+    int PC_CONTROL_INDEX = 0;
     boolean MET_BASTE = false;
     boolean KIDNAPPING = false;
     boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
     Lesson CURRENT_LESSON = null;
     boolean WAITING_FOR_ANSWER_TO_LESSON = false;
     int LAST_LESSON_INDEX = -1;
+
+    // En ce qui concerne l'interpréteur Bash :
+    final FileElement root = new FileElement(
+        "/", "/", new FileElement[]{
+            new FileElement("Bureau", "/Bureau", new FileElement[]{ new FileElement("answer_to_life.txt", "/Bureau/answer_to_life.txt", "42") }),
+            new FileElement("Chien", "/Chien", new FileElement[]{ new FileElement("photo_chien1.jpg", "/Chien/photo_chien1.jpg"), new FileElement("photo_chien2.jpg", "/Chien/photo_chien2.jpg"), new FileElement("photo_chien3.png", "/Chien/photo_chien3.png") }),
+            new FileElement("Famille", "/Famille", new FileElement[]{ new FileElement("photo_famille1.jpg", "/Famille/photo_famille1.jpg") }),
+            new FileElement(".Microsoft", "/.Microsoft", "bGludXhoaW50LmNvbQo="),
+        }
+    );
+    final BashReader bashProcess = new BashReader("/", root, () -> { TIME_PASSING=true;WAITING_FOR_USER_INPUT=false;clearDialogAndMessage(); });
 
     void algorithm() {
         loadMainMenu();
@@ -311,6 +331,43 @@ class Main extends Program {
                     }
             }
         } else if (page == Page.GAME) {
+            if (WAITING_FOR_USER_INPUT) {
+                // Le joueur n'est pas en train d'utiliser son clavier pour se mouvoir ou jouer,
+                // non, on veut qu'il écrive quelque chose puis confirme en utilisant Entrer.
+                // C'est le cas quand on veut qu'il entre des commandes BASH.
+                
+                if (a == ENTER_KEY) {
+                    clearLine();
+                    saveCursorPosition();
+                    int h = getTotalHeight()+6;
+                    for (int i = 0; i < 15; i++) {
+                        clearLine();
+                        moveCursorTo(0,h+i);
+                    }
+                    restoreCursorPosition();
+                    print("\r> ");
+                    saveCursorPosition();
+                    if (INPUT.trim().length() == 0) {
+                        return;
+                    }
+                    BashResult result = bashProcess.executeCommand(bashProcess.parseCommand(INPUT.trim()));
+                    println("\n\n" + result.toString(true));
+                    restoreCursorPosition();
+                    INPUT = "";
+                    return;
+                } if (a >= 32 && a < 127) { // Si l'utilisateur écrit quelque chose, on veut qu'il se limite aux caractères simples d'ASCII.
+                    INPUT += (char)a;
+                } else if (a == 127 && INPUT.length() >= 1) {
+                    INPUT = INPUT.substring(0,INPUT.length()-1);
+                }
+
+                clearLine();
+                // pour éviter le staircase effect, on s'assure de ne pas oublier le carriage return (\r),
+                // ce qui nous permet de rester bien sur le côté gauche de l'écran quand on écrit.
+                print("\r> " + INPUT);
+                
+                return;
+            }
             // On ne peut pas utiliser un `switch` ici
             // car les case doivent être des constantes.
             if (a == getKeyForCommandUID(KEY_QUIT)) {
@@ -494,6 +551,18 @@ class Main extends Program {
                             writeMessage("Vous ne pouvez pas dormir à cette heure-ci.");
                         }
                     }
+                } else if (nearestInteractiveCell == PC_CONTROL_INDEX) {
+                    if (!HAS_PASSWORD) {
+                        writeMessage("Baste - " + (!DISCOVERED_CONTROL_PC ? "Tu as découvert le PC centrale de la prison ! " : "") + "Il faut que tu trouves le mot de passe. Va te renseigner auprès des autres détenus. Je pense que c'est la date de naissance du directeur.");
+                    }
+                    if (HAS_PASSWORD) {
+                        writeMessage("Il s'agit du PC qui contrôle toute la prison" + (DISCOVERED_CONTROL_PC && HAS_PASSWORD ? " et tu as déjà trouvé le mot de passe" : "") + " ! Tu peux y entrer des commandes.");
+                        println("À tout moment, entre la commande \"exit\" et appuie sur Entrer pour quitter. Entre \"help\" pour obtenir de l'aide.\n");
+                        print("> ");
+                        TIME_PASSING = false;
+                        WAITING_FOR_USER_INPUT = true;
+                    }
+                    DISCOVERED_CONTROL_PC = true;
                 } else {
                     boolean found_one_but_different_map = false;
                     for (int i = 0; i < length(DIALOGS); i++) {
@@ -928,7 +997,7 @@ class Main extends Program {
      * @return Un booléan indiquant si cette couleur est interactive ou non.
      */
     boolean isCellInteractive(int cell) {
-        return cell != -1 && (COLORS[cell].i || cell == TV_INDEX);
+        return cell != -1 && (COLORS[cell].i || cell == TV_INDEX || cell == PC_CONTROL_INDEX);
     }
 
     /**
@@ -1103,9 +1172,9 @@ class Main extends Program {
      * - être interactive (un PNJ par exemple, ce qui n'est pas encore implémenté)
      * - être un chemin vers une autre map (exemple: une porte menant sur une autre salle), ce qu'on appelle la "téléportation"
      * Pour avoir toutes les données nécessaires, on lit plusieurs fichiers :
-     * - La charte de couleurs (`./assets/0-colors.csv`)
-     * - Les téléportations possibles (`./assets/0-teleportations.csv`)
-     * - Les dialogyes (`./assets/0-dialogs.csv`)
+     * - La charte de couleurs (`../assets/0-colors.csv`)
+     * - Les téléportations possibles (`../assets/0-teleportations.csv`)
+     * - Les dialogyes (`../assets/0-dialogs.csv`)
      * Cette fonction ne sera appelée qu'une seule fois lors de l'initialisation du jeu.
      */
     void initializeColorsAndDialogs() {
@@ -1190,6 +1259,7 @@ class Main extends Program {
                 case "TV": TV_INDEX = colorIndex; break;
                 case "Baste": BASTE_INDEX = colorIndex; break;
                 case "Bed": BED_INDEX = colorIndex; break;
+                case "PC_CONTROL": PC_CONTROL_INDEX = colorIndex; break;
             }
         }
     }
@@ -1210,7 +1280,7 @@ class Main extends Program {
 
     /**
      * Pour gagner en fluidité lors du jeu, nous allons charger toutes les cartes du jeu lors de l'initialisation du jeu.
-     * Toutes les cartes sont stockées dans "./assets/maps/".
+     * Toutes les cartes sont stockées dans "../assets/maps/".
      * Chaque carte est une matrice où chaque nombre est
      * le numéro unique associé à une couleur dans la charte (`0-colors.csv`)
      */
@@ -1245,7 +1315,7 @@ class Main extends Program {
     }
 
     /**
-     * Initialise toutes les commandes stockées dans le fichier `./assets/0-commands.csv`.
+     * Initialise toutes les commandes stockées dans le fichier `../assets/0-commands.csv`.
      */
     void initializeAllCommands() {
         CSVFile file = loadCSV(COMMANDS_PATH);

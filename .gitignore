@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 *.class
+classes/
 tests/
 cours.txt
 archive/
