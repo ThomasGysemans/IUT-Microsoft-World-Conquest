@@ -130,13 +130,17 @@ class Main extends Program {
     // quand on veut qu'il écrive quelque chose (une commande BASH par exemple).
     boolean WAITING_FOR_USER_INPUT = false;
     String INPUT = ""; // on enregistre ce qu'il écrit ici
+    // Dans cet ordre spécifique pour commencer à écrire du Bash
     boolean DISCOVERED_CONTROL_PC = false;
+    boolean HAS_LINUX = false; // la clé USB donnée par Baste
+    boolean HAS_USB_KEY = false; // la clé USB donnée par Mathieu
     boolean HAS_PASSWORD = false;
 
-    int PC_INDEX = 0;
-    int BASTE_INDEX = 0;
-    int BED_INDEX = 0;
-    int PC_CONTROL_INDEX = 0;
+    int PC_INDEX;
+    int BASTE_INDEX;
+    int MATHIEU_INDEX;
+    int BED_INDEX;
+    int PC_CONTROL_INDEX;
     boolean MET_BASTE = false;
     boolean KIDNAPPING = false;
     boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
@@ -457,8 +461,15 @@ class Main extends Program {
                             COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = true;
                         }
                     } else {
-                        currentHelp = getHelpOfGroup(0);
-                        currentHelpIndex = (COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME ? 3 : 0);
+                        currentHelpIndex = 0;
+                        if (KIDNAPPING && !DISCOVERED_CONTROL_PC && !HAS_LINUX) {
+                            currentHelp = getHelpOfGroup(0);
+                            currentHelpIndex = (COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME ? 3 : 0);
+                        } else if (DISCOVERED_CONTROL_PC && !HAS_LINUX) {
+                            currentHelp = getHelpOfGroup(1);
+                        } else if (HAS_LINUX) {
+                            currentHelp = getHelpOfGroup(2);
+                        }
                         writeHelp(currentHelp[currentHelpIndex]);
                         if (length(currentHelp) > 1) {
                             printEmptyLine();
@@ -478,7 +489,7 @@ class Main extends Program {
                             clearMyScreen();
                             new Thread(() -> {
                                 try {
-                                    println("Vous vous faites kidnappés...");
+                                    println("Vous vous faites kidnapper...");
                                     Thread.sleep(2000);
                                     println("Tout le monde a été emmené avec vous,");
                                     Thread.sleep(2000);
@@ -494,6 +505,8 @@ class Main extends Program {
                                 }
                             }).start();
                             return;
+                        } else if (!HAS_LINUX && currentDialogs[currentGroupIndex-1].colorIndex == BASTE_INDEX && currentMap.equals("couloir-5")) {
+                            HAS_LINUX = true;
                         }
                         resetDialogState();
                     } else {
@@ -552,17 +565,57 @@ class Main extends Program {
                         }
                     }
                 } else if (nearestInteractiveCell == PC_CONTROL_INDEX) {
-                    if (!HAS_PASSWORD) {
-                        writeMessage("Baste - " + (!DISCOVERED_CONTROL_PC ? "Tu as découvert le PC centrale de la prison ! " : "") + "Il faut que tu trouves le mot de passe. Va te renseigner auprès des autres détenus. Je pense que c'est la date de naissance du directeur.");
-                    }
-                    if (HAS_PASSWORD) {
-                        writeMessage("Il s'agit du PC qui contrôle toute la prison" + (DISCOVERED_CONTROL_PC && HAS_PASSWORD ? " et tu as déjà trouvé le mot de passe" : "") + " ! Tu peux y entrer des commandes.");
-                        println("À tout moment, entre la commande \"exit\" et appuie sur Entrer pour quitter. Entre \"help\" pour obtenir de l'aide.\n");
-                        print("> ");
-                        TIME_PASSING = false;
-                        WAITING_FOR_USER_INPUT = true;
+                    if (!HAS_LINUX) {
+                        writeMessage("Baste - " + (!DISCOVERED_CONTROL_PC ? "Tu as découvert le PC centrale de la prison ! " : "") + "Il te faut maintenant un moyen d'utiliser Linux. Via me voir.");
+                    } else {
+                        if (!HAS_USB_KEY) {
+                            writeMessage("Baste - Tu as besoin d'une autre clé USB pour copier les données confidentielles.");
+                        } else {
+                            if (!HAS_PASSWORD) {
+                                writeMessage("Baste - Il faut que tu trouves le mot de passe. Va te renseigner auprès des autres détenus. Je pense que c'est la date de naissance du directeur.");
+                            } else {
+                                writeMessage("Il s'agit du PC qui contrôle toute la prison" + (DISCOVERED_CONTROL_PC && HAS_PASSWORD ? " et tu as déjà trouvé le mot de passe" : "") + " ! Tu peux y entrer des commandes.");
+                                println("À tout moment, entre la commande \"exit\" et appuie sur Entrer pour quitter. Entre \"help\" pour obtenir de l'aide.\n");
+                                print("> ");
+                                TIME_PASSING = false;
+                                WAITING_FOR_USER_INPUT = true;
+                            }
+                        }
                     }
                     DISCOVERED_CONTROL_PC = true;
+                } else if (nearestInteractiveCell == BASTE_INDEX && currentMap.equals("couloir-5")) {
+                    if (DISCOVERED_CONTROL_PC) {
+                        writeMessage("Baste - Hey, voilà la clé USB. Cependant, pour copier les données du PC, il va t'en falloir une autre.");
+                    } else {
+                        writeMessage("Baste - Coucou, je repense à du Bash aujourd'hui...");
+                    }
+                } else if (nearestInteractiveCell == MATHIEU_INDEX && HAS_LINUX && !HAS_USB_KEY && currentMap.equals("couloir-3")) {
+                    writeMessage("Mathieu - Je t'ai vu parlé à Baste, et je suis prêt à t'aider. Tiens, la clé USB dont tu as besoin.");
+                    root.appendFileElement(
+                        new FileElement("USB-Mathieu", "/USB-Mathieu", new FileElement[]{
+                            new FileElement("transp_cours21_handout-1.pdf", "/USB/transp_cours21_handout-1.pdf"),
+                            new FileElement("transports-marchandises.mcd", "/USB/transports-marchandises.mcd"),
+                        })
+                    );
+                    root.appendFileElement(
+                        new FileElement("USB-Baste", "/USB-Baste", new FileElement[]{
+                            new FileElement("ARCHLINUX.iso", "/USB-Baste/ARCHLINUX.iso"),
+                            new FileElement("bible.txt", "/USB-Baste/bible.txt", """
+                                Juliem Bastum senior sit amet formosus admodum, doctus homo, qui codicem noverat, complexus est.
+                                In primo semestri nostro ei convenimus, cum adhuc iuvenes essemus et imperiti in primo amphitheatro Systematis introductorio.
+                                Tam pridem, nonnulli ad hanc formidolosam nostram passionem futuram non suspicabantur, adeo ut alii dormirent, alii cum admiratione initiati sunt ad contemplandum charisma,
+                                intelligentia et ingenium loquentis. Dum in spectaculis magnifici crines oculos nostros induxerant, eius oratio sollerter nos Linux introduxit cum honesto
+                                studio nos eximendi ab influentia Microsoftus,quae conscientias cupider servaverat.
+                                In memoria mea interdum obscuratur, quaedam perspicuitas erat, cum has auditores rarae pulchritudinis meminissem. Imbres et ventos profitebar ire loco sancto.
+                                In capulus demersus sum ut oculos tantum haberem ei, et lectio diligenter parata. Tali passione descripsit operationes binariis terribiles, quae tamen depressionem plurium urit ex nobis.
+                                Intantum fervorem, ut corpora et corda nostra etiam in unitatem foveantur.
+                            """),
+                            new FileElement("Thomas", "/USB-Baste/Thomas", new FileElement[]{
+                               new FileElement("naval-battle.sh", "/USB-Baste/Thomas/naval-battle.sh", "#!/usr/bin/env bash\n\n...")
+                            })
+                        })
+                    );
+                    HAS_USB_KEY = true;
                 } else {
                     boolean found_one_but_different_map = false;
                     for (int i = 0; i < length(DIALOGS); i++) {
@@ -636,16 +689,16 @@ class Main extends Program {
                 String teacher;
                 if (day % 7 == 1) { // Tuesday
                     CURRENT_LESSON = ENGLISH_LESSONS[index];
-                    teacher = "Professeur d'anglais";
+                    teacher = "Vanuxem - Prof d'anglais";
                 } else if (day % 7 == 3) { // Thursday
                     CURRENT_LESSON = HISTORY_LESSONS[index];
-                    teacher = "Professeur d'histoire";
+                    teacher = "Cappelle - Prof d'histoire";
                 } else if (day % 7 == 5) { // Saturday
                     CURRENT_LESSON = FRENCH_LESSONS[index];
-                    teacher = "Professeur de français";
+                    teacher = "Carle - Prof de français";
                 } else if (day % 7 == 6) { // Sunday
                     CURRENT_LESSON = MATHS_LESSONS[index];
-                    teacher = "Professeur de maths";
+                    teacher = "Delecroix - Prof de maths";
                 } else {
                     writeMessage("Il n'y a pas cours aujourd'hui.");
                     return;
@@ -1260,6 +1313,7 @@ class Main extends Program {
                 case "Baste": BASTE_INDEX = colorIndex; break;
                 case "Bed": BED_INDEX = colorIndex; break;
                 case "PC_CONTROL": PC_CONTROL_INDEX = colorIndex; break;
+                case "Mathieu": MATHIEU_INDEX = colorIndex; break;
             }
         }
     }

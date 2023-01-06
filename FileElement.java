@@ -28,4 +28,47 @@ class FileElement {
     pwd = p;
     fileContent = "Erreur : Ce fichier ne peut pas être ouvert ici.";
   }
+
+  /**
+   * Adds a new element to a folder.
+   * If the element is not a folder, request is ignored.
+   * @param newElement The new element to be added. It can be either a file or a directory.
+   */
+  public void appendFileElement(FileElement newElement) {
+    if (type == Element.FOLDER) {
+      FileElement[] copy = new FileElement[subElements.length + 1];
+      for (int i = 0; i < subElements.length; i++) {
+        copy[i] = subElements[i];
+      }
+      copy[copy.length-1] = newElement;
+      subElements = copy;
+    }
+  }
+
+  /**
+   * Returns a copy of the element
+   */
+  public FileElement copy() {
+    if (type == Element.FOLDER) {
+      return new FileElement(name, pwd, subElements);
+    } else {
+      return new FileElement(name, pwd, fileContent);
+    }
+  }
+
+  /**
+   * Returns the list of the copied subelements.
+   * We want to make sure we do not have a shallow copy.
+   */
+  public FileElement[] copyOfSubElements() {
+    if (type == Element.FOLDER) {
+      FileElement[] c = new FileElement[subElements.length];
+      for (int i = 0; i < c.length; i++) {
+        c[i] = subElements[i].copy();
+      }
+      return c;
+    } else {
+      return null;
+    }
+  }
 }

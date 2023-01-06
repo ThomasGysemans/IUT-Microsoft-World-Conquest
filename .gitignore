@@ -2,7 +2,7 @@
 .vscode/
 *.class
 classes/
-tests/
+mytests/
 cours.txt
 archive/
 archive.zip

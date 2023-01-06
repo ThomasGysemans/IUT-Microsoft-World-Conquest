@@ -13,13 +13,16 @@
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Base64;
 
 class BashReader {
   final String COMMAND_REGEX = "([a-zA-Z\\d]+)((?: -{1,2}[a-z]+)*)([ \\w=./+\\\\\\-'\\\"]*)\\|?"; // I call this a nice Tuesday
-  final String PATH_REGEX = "^(?:\\.{0,2}\\/?)(?:[\\w\\-.]+\\/?)*$";
+  final String ANSI_FOUND_MATCH = "\u001b[38;2;59;179;23m";
+  final String ANSI_FOUND_PATTERN = "\u001b[38;2;24;56;217m";
+  final String ANSI_RESET = "\033[0m";
 
-  final String MAIN_HELP = """
+  final String HELP = """
     Donnez des instructions à l'ordinateur au moyen de commandes simples.
     Écrivez une commande puis tapez sur la touche Entrer de votre clavier.
     L'ordinateur contient deux types d'éléments : des dossiers et des fichiers.
@@ -33,99 +36,124 @@ class BashReader {
     Toutes les autres commandes disponibles : pwd, echo, tr, exit.
   """;
 
-  final String MAN_BASE64 = """
-    La commande \"base64\" vous permet de crypter ou de décrypter un texte secret.
-    Crypter un texte signifie qu'il devient illisibile. C'est utile pour cacher un secret.
+  final Hashtable<String, String> MANUAL = new Hashtable<String, String>() {{
+    put("base64", """
+      La commande \"base64\" vous permet de crypter ou de décrypter un texte secret.
+      Crypter un texte signifie qu'il devient illisibile. C'est utile pour cacher un secret.
 
-    Pour crypter un texte, tapez : base64 Bonjour
-    Pour crypter le contenu d'un fichier, tapez : cat le_chemin_vers_le_fichier | base64
+      Pour crypter un texte, tapez : base64 Bonjour
+      Pour crypter le contenu d'un fichier, tapez : cat le_chemin_vers_le_fichier | base64
 
-    Pour décrypter un texte, tapez : base64 --decode le_texte
-    Pour décrypter un fichier, tapez : cat le_chemin_vers_le_fichier | base64 --decode
+      Pour décrypter un texte, tapez : base64 --decode le_texte
+      Pour décrypter un fichier, tapez : cat le_chemin_vers_le_fichier | base64 --decode
 
-    Évidemment, remplacez 'le_chemin_vers_le_fichier' avec le chemin du fichier cible.
-    Pour avoir plus d'informations quant au chemin d'un fichier, tapez : man cd
-  """;
+      Évidemment, remplacez 'le_chemin_vers_le_fichier' avec le chemin du fichier cible.
+      Pour avoir plus d'informations quant au chemin d'un fichier, tapez : man cd
+    """);
+    put("cd", """
+      La commande \"cd\" vous permet de naviguer dans les dossiers de l'ordinateur.
+      L'ordinateur est rangé telle une bibliothèque, ou une armoire, et chaque section est un dossier, et chaque livre un fichier.
+      Vous commencez à la racine de la bibliothèque, dont le nom du dossier est juste \"/\".
 
-  final String MAN_CD = """
-    La commande \"cd\" vous permet de naviguer dans les dossiers de l'ordinateur.
-    L'ordinateur est rangé telle une bibliothèque, ou une armoire, et chaque section est un dossier, et chaque livre un fichier.
-    Vous commencez à la racine de la bibliothèque, dont le nom du dossier est juste \"/\".
+      Pour accéder à un dossier, il faut taper son chemin.
+      Si le dossier est contenu dans celui dans lequel on est actuellement, alors il suffit de taper : cd le_nom_du_dossier.
+      Exemple : \"cd Bureau\".
 
-    Pour accéder à un dossier, il faut taper son chemin.
-    Si le dossier est contenu dans celui dans lequel on est actuellement, alors il suffit de taper : cd le_nom_du_dossier.
-    Exemple : \"cd Bureau\".
+      Si vous voulez y accéder depuis la racine, tapez le chemin complet vers celui-ci.
+      Exemple : \"cd /Bureau/answer_to_life.txt\", où \"/\" est la racine, \"Bureau\" un dossier dans la racine, et \"answer_to_life.txt\" un fichier.
 
-    Si vous voulez y accéder depuis la racine, tapez le chemin complet vers celui-ci.
-    Exemple : \"cd /Bureau/answer_to_life.txt\", où \"/\" est la racine, \"Bureau\" un dossier dans la racine, et \"answer_to_life.txt\" un fichier.
+      Plus d'informations pour connaître votre position actuelle, tapez : man pwd.
+    """);
+    put("ls", """
+      La commande \"ls\" vous permet de lister le contenu du dossier dans lequel vous vous trouvez selon le PWD.
+      Le PWD représente votre position actuelle dans l'ordinateur, que l'on peut comparer à une bibliothèque, relative à la racine.
+      Pour plus d'informations sur le PWD, tapez : man pwd.
 
-    Plus d'informations pour connaître votre position actuelle, tapez : man pwd.
-  """;
+      Par exemple, si vous vous situez dans le dossier \"Famille\" par exemple, vous pourrez lister son contenu.
 
-  final String MAN_LS = """
-    La commande \"ls\" vous permet de lister le contenu du dossier dans lequel vous vous trouvez selon le PWD.
-    Le PWD représente votre position actuelle dans l'ordinateur, que l'on peut comparer à une bibliothèque, relative à la racine.
-    Pour plus d'informations sur le PWD, tapez : man pwd.
+      Pour plus d'informations quant à la navigation, tapez : man cd.
+    """);
+    put("pwd", """
+      La commande \"pwd\" vous permet de savoir où vous vous situez dans la navigation de l'ordinateur.
+      Ceci vous donne le chemin absolu, c'est-à-dire le chemin complet depuis la racine,
+      de sorte à ce que l'on puisse vous retrouver depuis n'importe où.
 
-    Par exemple, si vous vous situez dans le dossier \"Famille\" par exemple, vous pourrez lister son contenu.
+      Un chemin absolu commencera toujours avec la racine : \"/\".
+      Un chemin relatif se base sur le chemin actuel (le PWD).
+      Pour plus d'informations, tapez : man cd.
+    """);
+    put("echo", """
+      La commande \"echo\" vous permet d'afficher du texte.
+      Exemple : \"echo toto\". Ceci va afficher \"toto\".
+    """);
+    put("tr", """
+      La commande \"tr\" vous permet de modifier le contenu de l'entrée standard.
+      Vous pouvez modifier une partie du texte pour la remplacer par une autre.
+      Par exemple : \"echo yoyo | tr y t\" donnera comme résultat : \"toto\", 
+      car la commande a remplacé les \"y\" par des \"t\" dans le mot \"yoyo\".
 
-    Pour plus d'informations quant à la navigation, tapez : man cd.
-  """;
+      Ceci fonctionne pour n'importe quelle entrée.
+      Cela vous permet ainsi de visualiser le contenu d'un fichier différement,
+      avec par exemple : \"cat /Bureau/answer_to_life.txt | tr 4 3\" donnant \"32\" au lieu de \"42\".
 
-  final String MAN_PWD = """
-    La commande \"pwd\" vous permet de savoir où vous vous situez dans la navigation de l'ordinateur.
-    Ceci vous donne le chemin absolu, c'est-à-dire le chemin complet depuis la racine,
-    de sorte à ce que l'on puisse vous retrouver depuis n'importe où.
+      Pour plus d'informations sur la commande \"cat\", tapez : man cat.
+    """);
+    put("cat", """
+      La commande \"cat\" permet de lire le contenu d'un fichier texte.
+      Les fichiers textuels ont traditionnellement, à la toute fin de leur nom, l'extension : \".txt\".
 
-    Un chemin absolu commencera toujours avec la racine : \"/\".
-    Un chemin relatif se base sur le chemin actuel (le PWD).
-    Pour plus d'informations, tapez : man cd.
-  """;
-  
-  final String MAN_ECHO = """
-    La commande \"echo\" vous permet d'afficher du texte.
-    Exemple : \"echo toto\". Ceci va afficher \"toto\".
-  """;
+      Par exemple : ouvrez le dossier Bureau avec la commande \"cd\" (pour plus d'infos tapez : man cd),
+      puis listez son contenu avec la commande \"ls\" (pour plus d'infos tapez : man ls),
+      et enfin tapez \"cat le_nom_du_fichier\" en remplaçant \"le_nom_du_fichier\"
+      par le nom complet d'un des fichiers du dossier ouvert.
+    """);
+    put("head", """
+      La commande \"head\" permet de sélectionner un certain nombre de lignes à partir du début du texte sortant.
+      Cette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').
+      Exemple : \"man cd | head\".
 
-  final String MAN_TR = """
-    La commande \"tr\" vous permet de modifier le contenu de l'entrée standard.
-    Vous pouvez modifier une partie du texte pour la remplacer par une autre.
-    Par exemple : \"echo yoyo | tr y t\" donnera comme résultat : \"toto\", 
-    car la commande a remplacé les \"y\" par des \"t\" dans le mot \"yoyo\".
+      Par défaut, les 5 premières lignes seront affichées.
+      Changez ceci avec l'option \"-n\".
+      Exemple : \"man cd | head -n 2\" (qui affiche les deux premières lignes du manuel de la commande \"cd\").
+    """);
+    put("tail", """
+      La commande \"tail\" permet de sélectionner un certain nombre de lignes à partir de la fin du texte sortant.
+      Cette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').
+      Exemple : \"man cd | tail\".
 
-    Ceci fonctionne pour n'importe quelle entrée.
-    Cela vous permet ainsi de visualiser le contenu d'un fichier différement,
-    avec par exemple : \"cat /Bureau/answer_to_life.txt | tr 4 3\" donnant \"32\" au lieu de \"42\".
+      Par défaut, les 5 dernières lignes seront affichées.
+      Changez ceci avec l'option \"-n\".
+      Exemple : \"man cd | tail -n 2\" (qui affiche les deux dernières lignes du manuel de la commande \"cd\").
+    """);
+    put("grep", """
+      La commande \"grep\" affiche les lignes du texte sortant contenant un certain mot.
+      Vous pouvez l'utiliser pour lire un grand fichier et ne sélectionner que quelques lignes intéressantes.
+      Exemple : \"cat toto.txt | grep la\" (ce qui affiche toutes les lignes du fichier \"toto.txt\" contenant le texte \"la\").
+    """);
+    put("cp", """
+      La commande \"cp\" copie le contenu d'un fichier, ou d'un dossier, vers une cible,
+      remplaçant l'intégralité de son contenu actuel si elle existe déjà ou créant le fichier du même nom.
+      Exemple : \"cp toto.txt tata.txt\" (copie le contenu de toto.txt vers un fichier qui n'existe pas. La commande le crée.).
 
-    Pour plus d'informations sur la commande \"cat\", tapez : man cat.
-  """;
-
-  final String MAN_CAT = """
-    La commande \"cat\" permet de lire le contenu d'un fichier texte.
-    Les fichiers textuels ont traditionnellement, à la toute fin de leur nom, l'extension : \".txt\".
-
-    Par exemple : ouvrez le dossier Bureau avec la commande \"cd\" (pour plus d'infos tapez : man cd),
-    puis listez son contenu avec la commande \"ls\" (pour plus d'infos tapez : man ls),
-    et enfin tapez \"cat le_nom_du_fichier\" en remplaçant \"le_nom_du_fichier\"
-    par le nom complet d'un des fichiers du dossier ouvert.
-  """;
-
-  final String MAN_EXIT = """
-    La commande \"exit\" stoppe le terminal.
-  """;
-
-  final String MAN_MAN = """
-    La commande \"man\" ouvre le manuel d'utilisation sur une commande spécifique.
-    Utilisez la commande la manière suivante : \"man nom_de_la_commande\".
-    Remplacez \"nom de la commande\" par le nom de la commande sur laquelle vous avez besoin de plus d'informations.
-    Exemple : \"man cd\".
-  """;
-
-  final String MAN_HELP = """
-    La commande \"help\" est une commande unique au jeu.
-    Elle vous permet d'avoir les premières informations essentielles afin de comprendre quoi faire.
-    En suivant les instructions, vous serez capable d'accomplir votre objectif.
-  """;
+      Cette commande peut également copier le contenu d'un dossier pour le fusionner avec le contenu d'un autre.
+      Exemple : \"cp MonSuperDossier UnNouveauDossier/\" (copie tous les fichiers du dossier dans un dossier que la commande crée également au passage).
+      Notes :
+        - Si la cible n'existe pas et qu'il s'agit d'un dossier, il faut faire comprendre à la commande qu'il s'agit d'un dossier en terminant le nom par un slash ("/").
+        - Au contraire, si le dossier cible contient déjà des fichiers de même nom, alors le contenu de ces fichiers sera remplacé par ceux du même nom, et la fusion continue.
+    """);
+    put("exit", "La commande \"exit\" stoppe le terminal.");
+    put("man", """
+      La commande \"man\" ouvre le manuel d'utilisation sur une commande spécifique.
+      Utilisez la commande la manière suivante : \"man nom_de_la_commande\".
+      Remplacez \"nom de la commande\" par le nom de la commande sur laquelle vous avez besoin de plus d'informations.
+      Exemple : \"man cd\".
+    """);
+    put("help", """
+      La commande \"help\" est une commande unique au jeu.
+      Elle vous permet d'avoir les premières informations essentielles afin de comprendre quoi faire.
+      En suivant les instructions, vous serez capable d'accomplir votre objectif.
+    """);
+  }};
 
   String PWD = "/";
   FileElement root;
@@ -143,7 +171,7 @@ class BashReader {
    * This is not meant to be used as a professionnal tool so such issues can be neglected.
    * The way it works is that each line can have several commands separated by pipes.
    * A command that is preceeded by a pipe is called a "subcommand" and its standard input will count as an argument,
-   * And this argument is the output of the previous command.
+   * and this argument is the output of the previous command.
    * @param command The input of the user.
    * @return The command and its data. The command can then be executed.
    */
@@ -228,15 +256,13 @@ class BashReader {
           return throwError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.standardInput != null) {
           return throwError(BashError.UNEXPECTED_INPUT, command);
-        } else if (!isPathSyntaxCorrect(command.arguments[0])) {
+        } else if (command.pipes != null) {
+          return throwError(BashError.UNEXPECTED_PIPES, command);
+        }
+        Path targetPath = Path.parse(command.arguments[0]);
+        if (targetPath == null) {
           return throwError(BashError.PATH_SYNTAX_ERROR, command);
         }
-        FileElement b = getFileElementFrom(PWD);
-        if (b == null) {
-          PWD = "/"; // rebase
-          return throwError(BashError.UNEXISTING_PATH, command);
-        }
-        String targetPath = command.arguments[0];
         FileElement target = getFileElementFrom(targetPath);
         if (target == null) {
           return throwError(BashError.UNKNOWN_PATH, command);
@@ -255,10 +281,13 @@ class BashReader {
         } else if (command.arguments != null && command.arguments.length > 1) {
           return throwError(BashError.TOO_MANY_ARGUMENTS, command);
         }
-        String f = getFileElementsHierarchyBasedOnPWD(command.arguments != null ? command.arguments[0].replaceAll("\"|'", "") : PWD, command.options != null && command.options[0].equals("-a"));
-        if (f == null) {
+        FileElement lsTarget = getFileElementFrom(command.arguments != null ? command.arguments[0] : PWD);
+        if (lsTarget == null) {
           return throwError(BashError.UNKNOWN_PATH, command);
+        } else if (lsTarget.type != Element.FOLDER) {
+          return throwError(BashError.NOT_A_DIRECTORY, command);
         }
+        String f = getFileElementsHierarchyBasedOnPWD(lsTarget, command.options != null && command.options[0].equals("-a"));
         return distributePipes(command, new BashResult(f));
       case "cat":
         if (command.options != null) {
@@ -269,21 +298,18 @@ class BashReader {
           return throwError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.standardInput != null) {
           return throwError(BashError.UNEXPECTED_INPUT, command);
-        } else if (!isPathSyntaxCorrect(command.arguments[0])) {
+        }
+        Path catPath = Path.parse(command.arguments[0]);
+        if (catPath == null) {
           return throwError(BashError.PATH_SYNTAX_ERROR, command);
         }
-        FileElement cb = getFileElementFrom(PWD);
-        if (cb == null) {
-          PWD = "/"; // rebase
-          return throwError(BashError.UNEXISTING_PATH, command);
-        }
-        FileElement file = getFileElementFrom(command.arguments[0].replaceAll("\"|'", ""));
-        if (file == null) {
+        FileElement catFile = getFileElementFrom(catPath);
+        if (catFile == null) {
           return throwError(BashError.UNKNOWN_PATH, command);
-        } else if (file.type != Element.FILE) {
+        } else if (catFile.type != Element.FILE) {
           return throwError(BashError.NOT_A_FILE, command);
         }
-        return distributePipes(command, new BashResult(file.fileContent));
+        return distributePipes(command, new BashResult(catFile.fileContent));
       case "base64":
         if (command.standardInput != null && command.arguments != null) {
           return throwError(BashError.UNEXPECTED_ARGUMENT, command);
@@ -314,7 +340,7 @@ class BashReader {
         } else if (command.standardInput != null) {
           return throwError(BashError.UNEXPECTED_INPUT, command);
         }
-        return distributePipes(command, new BashResult(MAIN_HELP));
+        return distributePipes(command, new BashResult(HELP));
       case "exit":
         if (command.arguments != null) {
           return throwError(BashError.UNEXPECTED_ARGUMENT, command);
@@ -322,8 +348,160 @@ class BashReader {
           return throwError(BashError.UNKNOWN_OPTION, command);
         } else if (command.standardInput != null) {
           return throwError(BashError.UNEXPECTED_INPUT, command);
+        } else if (command.pipes != null) {
+          return throwError(BashError.UNEXPECTED_PIPES, command);
         }
         onExit.run();
+        return new BashResult();
+      case "head":
+        if (command.options != null && (!command.options[0].equals("-n") || command.options.length > 1)) {
+          return throwError(BashError.UNKNOWN_OPTION, command);
+        } else if (command.options == null && command.arguments != null) {
+          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+        } else if (command.standardInput == null) {
+          return throwError(BashError.EXPECTING_INPUT, command);
+        }
+        int headN = command.arguments != null ? Integer.parseInt(command.arguments[0]) : 5;
+        if (headN < 0) {
+          return throwError(BashError.INVALID_ARGUMENTS, command);
+        }
+        String headContent = command.standardInput.trim();
+        int headLinePos = headContent.indexOf('\n');
+        while (--headN > 0 && headLinePos != -1) {
+          headLinePos = headContent.indexOf('\n', headLinePos + 1);
+        }
+        return distributePipes(command, new BashResult(headLinePos <= 0 ? headContent : headContent.substring(0,headLinePos)));
+      case "tail":
+         if (command.options != null && (!command.options[0].equals("-n") || command.options.length > 1)) {
+          return throwError(BashError.UNKNOWN_OPTION, command);
+        } else if (command.options == null && command.arguments != null) {
+          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+        } else if (command.standardInput == null) {
+          return throwError(BashError.EXPECTING_INPUT, command);
+        }
+        int tailN = command.arguments != null ? Integer.parseInt(command.arguments[0]) : 5;
+        if (tailN < 0) {
+          return throwError(BashError.INVALID_ARGUMENTS, command);
+        }
+        String tailContent = command.standardInput.trim();
+        int tailLinePos = tailContent.lastIndexOf('\n');
+        while (--tailN > 0 && tailLinePos != -1) {
+          tailLinePos = tailContent.substring(0,tailLinePos-1).lastIndexOf('\n');
+        }
+        return distributePipes(command, new BashResult(tailLinePos <= 0 ? tailContent : tailContent.substring(tailLinePos)));
+      case "grep":
+        if (command.options != null) {
+          return throwError(BashError.UNKNOWN_OPTION, command);
+        } else if (command.arguments == null) {
+          return throwError(BashError.EXPECTING_ARGUMENT, command);
+        } else if (command.arguments.length > 1) {
+          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+        }
+        final Pattern grepPattern = Pattern.compile(command.arguments[0]);
+        final String[] grepFileLines = command.standardInput.split("\n");
+        String grepContent = "";
+        for (String line : grepFileLines) {
+          if (grepPattern.matcher(line).find()) {
+            grepContent += line.replaceAll(command.arguments[0], ANSI_FOUND_PATTERN + command.arguments[0] + ANSI_RESET) + "\n";
+          }
+        }
+        return distributePipes(command, new BashResult(grepContent));
+      case "cp":
+        if (command.options != null) {
+          return throwError(BashError.UNKNOWN_OPTION, command);
+        } else if (command.arguments == null) {
+          return throwError(BashError.EXPECTING_ARGUMENT, command);
+        } else if (command.arguments.length != 2) {
+          return throwError(BashError.INVALID_ARGUMENTS, command);
+        } else if (command.pipes != null) {
+          return throwError(BashError.UNEXPECTED_PIPES, command);
+        }
+        Path cp1 = Path.parse(command.arguments[0].startsWith("./") ? command.arguments[0].substring(2) : command.arguments[0]);
+        Path cp2 = Path.parse(command.arguments[1].startsWith("./") ? command.arguments[1].substring(2) : command.arguments[1]);
+        if (cp1 == null || cp2 == null) {
+          return throwError(BashError.PATH_SYNTAX_ERROR, command);
+        }
+        FileElement cp1File = getFileElementFrom(cp1);
+        FileElement cp2File = getFileElementFrom(cp2);
+        if (cp1File == null) {
+          return throwError(BashError.UNKNOWN_PATH, command);
+        }
+        if (cp1File.type == Element.FILE) {
+          if (cp2File != null) {
+            if (cp2File.type == Element.FILE) {
+              cp2File.fileContent = cp1File.fileContent;
+            } else if (cp2File.type == Element.FOLDER) {
+              boolean foundFileWithSameNameInsideFolder = false;
+              for (FileElement childElement : cp2File.subElements) {
+                if (childElement.name.equals(cp1File.name)) {
+                  childElement.fileContent = cp1File.fileContent;
+                  foundFileWithSameNameInsideFolder = true;
+                  break;
+                }
+              }
+              if (!foundFileWithSameNameInsideFolder) {
+                cp2File.appendFileElement(cp1File.copy());
+              }
+            }
+          } else {
+            // The destination doesn't exist, so we must know if the user wants to create a folder or a file
+            // We must keep in mind that the origin is a file.
+            FileElement newFile;
+            FileElement parentElement;
+
+            if (cp2.getParent() == null) {
+              parentElement = getFileElementFrom(PWD);
+            } else {
+              parentElement = getFileElementFrom(cp2.getParent());
+              if (parentElement == null) {
+                return throwError(BashError.UNKNOWN_PATH, command);
+              }
+            }
+
+            String completeFileName = cp2.getCompleteFileName();
+            if (cp2.isLeadingToFolder()) {
+              newFile = new FileElement(completeFileName, parentElement.pwd + "/" + completeFileName, new FileElement[]{ cp1File.copy() });
+            } else {
+              newFile = new FileElement(completeFileName, parentElement.pwd + "/" + completeFileName, cp1File.fileContent);
+            }
+            parentElement.appendFileElement(newFile.copy());
+          }
+        } else { // The origin is a folder
+          if (cp2File != null) {
+            if (cp2File.type != Element.FOLDER) {
+              return throwError(BashError.NOT_A_DIRECTORY, command);
+            } else {
+              // Merge content of folder 1 into folder 2
+              boolean foundSameFilenameDuringMerge = false;
+              for (FileElement childOf1 : cp1File.subElements) {
+                for (FileElement childOf2 : cp2File.subElements) {
+                  if (childOf2.name.equals(childOf1)) {
+                    childOf1.fileContent = childOf1.fileContent;
+                    foundSameFilenameDuringMerge = true;
+                    break;
+                  }
+                }
+                if (!foundSameFilenameDuringMerge) {
+                  cp2File.appendFileElement(childOf1.copy());
+                } else {
+                  foundSameFilenameDuringMerge = false;
+                }
+              }
+            }
+          } else {
+            // The destination doesn't exist.
+            // if cp2 is filename, then throw an error
+            // if cp2 is folder, then create the folder and copy the entire content as its subElements
+            if (cp2.isLeadingToFolder()) {
+              String parent = cp2.getParent();
+              FileElement parentElement = getFileElementFrom(parent == null ? PWD : parent);
+              FileElement destination = new FileElement(cp2.fileName, parentElement.pwd + "/" + cp2.fileName, cp1File.copyOfSubElements());
+              parentElement.appendFileElement(destination);
+            } else {
+              return throwError(BashError.NOT_A_DIRECTORY, command);
+            }
+          }
+        }
         return new BashResult();
       case "man":
         if (command.arguments == null) {
@@ -333,22 +511,9 @@ class BashReader {
         } else if (command.options != null) {
           return throwError(BashError.UNKNOWN_OPTION, command);
         }
-        String manText = "";
-        // Usually I would have done this differently,
-        // but considering the low number of commands,
-        // we can stick with that for now.
-        switch (command.arguments[0]) {
-          case "echo": manText = MAN_ECHO; break;
-          case "tr": manText = MAN_TR; break;
-          case "pwd": manText = MAN_PWD; break;
-          case "cd": manText = MAN_CD; break;
-          case "ls": manText = MAN_LS; break;
-          case "cat": manText = MAN_CAT; break;
-          case "base64": manText = MAN_BASE64; break;
-          case "help": manText = MAN_HELP; break;
-          case "exit": manText = MAN_EXIT; break;
-          case "man": manText = MAN_MAN; break;
-          default: return throwError(BashError.UNKNOWN_COMMAND, command);
+        String manText = MANUAL.get(command.arguments[0]);
+        if (manText == null) {
+          return throwError(BashError.UNKNOWN_COMMAND, command);
         }
         return distributePipes(command, new BashResult(manText));
       default:
@@ -383,28 +548,18 @@ class BashReader {
   }
 
   /**
-   * Checks if the syntax of a given path is correct.
-   * @param path The path coming from the input of a user.
-   * @return True if the syntax is correct, false otherwise.
-   */
-  public boolean isPathSyntaxCorrect(String path) {
-    return Pattern.compile(PATH_REGEX).matcher(path).matches();
-  }
-
-  /**
    * Gets the reference and metadata of a path.
-   * @param path The path of the desired element. It can be either absolute or relative to the current PWD.
+   * @param path The path of the desired element. It can be either absolute or relative.
    * @return The target's data.
    */
-  public FileElement getFileElementFrom(String path) {
-    String[] segments = path.split("/");
+  public FileElement getFileElementFrom(Path path) {
     FileElement base;
-    if (isAbsolutePath(path)) {
+    if (path.isAbsolute()) {
       base = root;
       boolean found = false;
-      for (int i = 1; i < segments.length; i++) {
+      for (int i = 1; i < path.segments.length; i++) {
         for (FileElement subElement : base.subElements) {
-          if (subElement.name.equals(segments[i])) {
+          if (subElement.name.equals(path.segments[i])) {
             base = subElement;
             found = true;
             break;
@@ -417,7 +572,7 @@ class BashReader {
       }
     } else {
       base = getFileElementFrom(PWD);
-      for (String segment : segments) {
+      for (String segment : path.segments) {
         if (segment.equals(".")) {
           continue;
         } else {
@@ -441,48 +596,35 @@ class BashReader {
   }
 
   /**
-   * Returns a string that represents all the containing elements of a folder.
-   * It won't show the hidden files (those starting with a dot) except if `showHiddenFiles` is set to true.
-   * @param pwd The absolute path of the folder whose contents should be displayed.
-   * @param showHiddenFiles Set it to true if you want to display the files starting with a dot.
-   * @return A string that can be printed to display the contents of the folder. Returns null if the path is not correct.
+   * Gets the file element according to a path.
+   * This function is meant to be used when we want to get the file element of PWD.
+   * @param path The path as a string, which is then parsed.
+   * @return An instance of FileElement corresponding to the element found at the given path.
    */
-  public String getFileElementsHierarchyBasedOnPWD(String pwd, boolean showHiddenFiles) {
-    String structure = "";
-    FileElement p = getFileElementFrom(pwd);
-    if (p == null) {
-      return null;
-    }
-    for (int i = 0; i < p.subElements.length; i++) {
-      if (!showHiddenFiles && p.subElements[i].name.charAt(0) == '.') {
-        continue;
-      }
-      if (p.subElements[i].type == Element.FOLDER) {
-        structure += "\u001b[38;2;59;179;23m" + p.subElements[i].name + "\033[0m\n";
-      } else {
-        structure += p.subElements[i].name + "\n";
-      }
-    }
-    return structure;
-  }
-  
-  /**
-   * Checks if a given path is absolute or relative.
-   * @param path The path to verify.
-   * @return True for absolute path, false for relative path.
-   */
-  public boolean isAbsolutePath(String path) {
-    return path.charAt(0) == '/';
+  public FileElement getFileElementFrom(String path) {
+    return getFileElementFrom(Path.parse(path));
   }
 
   /**
-   * Check if an absolute path is correct or not by trying to access it.
-   * If it can't access the target, it means it is not correct.
-   * @param path The absolute path to access.
-   * @return A boolean that indicates whether the path is correct or not.
+   * Returns a string that represents all the containing elements of a folder.
+   * It won't show the hidden files (those starting with a dot) except if `showHiddenFiles` is set to true.
+   * @param target The folder whose contents must be displayed.
+   * @param showHiddenFiles Set it to true if you want to display the files starting with a dot.
+   * @return A string that can be printed to display the contents of the folder. Returns null if the path is not correct.
    */
-  public boolean isAbsolutePathCorrect(String path) {
-    return getFileElementFrom(path) != null;
+  public String getFileElementsHierarchyBasedOnPWD(FileElement target, boolean showHiddenFiles) {
+    String structure = "";
+    for (int i = 0; i < target.subElements.length; i++) {
+      if (!showHiddenFiles && target.subElements[i].name.charAt(0) == '.') {
+        continue;
+      }
+      if (target.subElements[i].type == Element.FOLDER) {
+        structure += ANSI_FOUND_MATCH + target.subElements[i].name + ANSI_RESET + "\n";
+      } else {
+        structure += target.subElements[i].name + "\n";
+      }
+    }
+    return structure;
   }
 
   /**

@@ -41,14 +41,9 @@ enum BashError {
   },
   UNKNOWN_PATH {
     public String explain(String failingCommand) {
-      return errorIn(failingCommand) + "Le fichier, ou ce dossier, cible n'existe pas.";
+      return errorIn(failingCommand) + "Le fichier, ou le dossier, ciblé n'existe pas.";
     }
   }, // if the path we want to access doesn't exist.
-  UNEXISTING_PATH {
-    public String explain(String failingCommand) {
-      return errorIn(failingCommand) + "Le dossier dans lequel vous vous trouvez n'existe plus, ou a été corrompu.";
-    }
-  }, // if the path we're currently on was deleted
   NOT_A_DIRECTORY {
     public String explain(String failingCommand) {
       return errorIn(failingCommand) + "La cible n'est pas un dossier.";
@@ -62,6 +57,16 @@ enum BashError {
   PATH_SYNTAX_ERROR {
     public String explain(String failingCommand) {
       return errorIn(failingCommand) + "Le chemin spécifié comporte une erreur de syntaxe. Le système ne peut le comprendre.";
+    }
+  },
+  INVALID_ARGUMENTS {
+    public String explain(String failingCommand) {
+      return errorIn(failingCommand) + "Le ou les arguments passés sont invalides.";
+    }
+  },
+  UNEXPECTED_PIPES {
+    public String explain(String failingCommand) {
+      return errorIn(failingCommand) + "Cette commande ne peut pas être suivie d'autres commandes séparées par des \"pipes\" (|).";
     }
   };
 
