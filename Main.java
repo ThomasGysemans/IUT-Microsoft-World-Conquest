@@ -74,6 +74,7 @@ class Main extends Program {
     final String MATHS_LESSONS_PATH = "../assets/lessons/maths.csv";
     final String HISTORY_LESSONS_PATH = "../assets/lessons/history.csv";
     final String PRISONERS_PATH = "../assets/0-prisoners.csv";
+    final String RICK_PATH = "../assets/ascii/rick.txt";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
@@ -99,8 +100,6 @@ class Main extends Program {
     String[] PRISONERS_DIALOGS;
     int selectedLessonAnswer = 1;
     int selectedLessonAnswerPosY = 0;
-    int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
-    int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
 
     Dialog[] currentDialogs = null;
     int currentGroupIndex = 0; // l'indice du message du groupe actuel dans `currentDialogs`
@@ -153,6 +152,8 @@ class Main extends Program {
     int BED_INDEX;
     int PC_CONTROL_INDEX;
     int PRISONER_INDEX;
+    int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
+    int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
     Lesson CURRENT_LESSON = null;
     boolean WAITING_FOR_ANSWER_TO_LESSON = false;
     int LAST_LESSON_INDEX = -1;
@@ -646,6 +647,7 @@ class Main extends Program {
                     );
                     root.appendFileElement(
                         new FileElement("USB-Baste", "/USB-Baste", new FileElement[]{
+                            new FileElement("42.txt", "/USB-Baste/42.txt", "Never gonna give you up!\n" + readASCII(RICK_PATH)),
                             new FileElement("ARCHLINUX.iso", "/USB-Baste/ARCHLINUX.iso"),
                             new FileElement("bible.txt", "/USB-Baste/bible.txt", """
                                 Juliem Bastum senior sit amet formosus admodum, doctus homo, qui codicem noverat, complexus est.
@@ -1807,13 +1809,28 @@ class Main extends Program {
      * @return Un entier qui correspond au nombre de lignes affichées.
      */
     int printASCII(String path) {
-        File unTexte = newFile(path);
+        File text = newFile(path);
         int i = 0;
-        while (ready(unTexte)) {
-            println(readLine(unTexte));
+        while (ready(text)) {
+            println(readLine(text));
             i++;
         }
         return i;
+    }
+
+    /**
+     * Retourne le contenu d'un fichier texte.
+     * Ceci est utilisé pour afficher une image ASCII.
+     * @param path Le chemin vers le fichier.
+     * @return Le contenu du fichier.
+     */
+    String readASCII(String path) {
+        File file = newFile(path);
+        String output = "";
+        while (ready(file)) {
+            output+=readLine(file)+"\n";
+        }
+        return output;
     }
 
     /**

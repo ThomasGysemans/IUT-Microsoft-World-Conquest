@@ -352,6 +352,7 @@ class BashReader {
         } else if (command.pipes != null) {
           return throwError(BashError.UNEXPECTED_PIPES, command);
         }
+        PWD="/";
         onExit.run();
         return new BashResult();
       case "head":
