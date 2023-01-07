@@ -109,7 +109,7 @@ class Main extends Program {
 
     final int DAY_DELAY = 2*60; // nombre de secondes (in-game) pour un jour
     final int HOUR_DELAY = DAY_DELAY/24; // délai pour une heure
-    final int deadline = 30; // si `day` atteint cette valeur, alors game over!
+    final int DEADLINE = 30; // si `day` atteint cette valeur, alors game over!
     int hour = 17; // l'heure actuelle (in-game)
     int day = 0; // le jour actuel (in-game)
     Thread time; // le thread séparé correspondant au temps
@@ -487,6 +487,7 @@ class Main extends Program {
                         if (currentHelpIndex < length(currentHelp)) {
                             writeHelp(currentHelp[currentHelpIndex]);
                             printEmptyLine();
+                            clearLine();
                             if (currentHelpIndex == length(currentHelp) - 1) {
                                 println("Appuyez sur [" + getCommandOfUID(KEY_CONTACT).getCurrentChar() + "] pour terminer.");
                             } else {
@@ -522,7 +523,7 @@ class Main extends Program {
                     clearDialogAndMessage();
                     currentGroupIndex++;
                     if (currentDialogs[currentGroupIndex] == null) {
-                        if (MET_BASTE && !KIDNAPPING && currentDialogs[currentGroupIndex-1].colorIndex == BASTE_INDEX && currentMap.equals("outside_bibliotheque")) {
+                        if (MET_BASTE && !KIDNAPPING && currentDialogs[currentGroupIndex-1].colorIndex == BASTE_INDEX && currentMap.equals("devant-la-bibliotheque")) {
                             TIME_PASSING = false; // just in case the player left the game and came back between the beginning of the dialog and the kidnapping
                             KIDNAPPING = true;
                             LOCK_KEYS = true;
@@ -538,15 +539,13 @@ class Main extends Program {
                                     println("Peut-être que vous pourrez communiquer, en secret !");
                                     Thread.sleep(4000);
                                     TIME_PASSING = true;
-                                    teleportPlayerToNewMap("cellule-du-joueur", 0, 0);
+                                    teleportPlayerToNewMap("votre-cellule", 0, 0);
                                     LOCK_KEYS = false;
                                 } catch (Exception e) {
                                     System.err.println(e);
                                 }
                             }).start();
                             return;
-                        } else if (!HAS_LINUX && currentDialogs[currentGroupIndex-1].colorIndex == BASTE_INDEX && currentMap.equals("couloir-5")) {
-                            HAS_LINUX = true;
                         }
                         resetDialogState();
                     } else {
@@ -567,7 +566,7 @@ class Main extends Program {
                         }
                     }
                     printEmptyLine();
-                    println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                    println("Il reste " + (DEADLINE - day) + " jour" + (DEADLINE - day >= 2 ? 's' : "") + " avant la fin!");
                 } else if (nearestInteractiveCell == PRISONER_INDEX) {
                     if (random() < 0.05) {
                         writeMessage("Détenu - \"C'est bientôt l'anniversaire du directeur, le 01 septembre.\"");
@@ -631,8 +630,9 @@ class Main extends Program {
                     }
                     DISCOVERED_CONTROL_PC = true;
                 } else if (nearestInteractiveCell == BASTE_INDEX && currentMap.equals("couloir-5")) {
-                    if (DISCOVERED_CONTROL_PC) {
+                    if (DISCOVERED_CONTROL_PC && !HAS_LINUX) {
                         writeMessage("Baste - Hey, voilà la clé USB. Cependant, pour copier les données du PC, il va t'en falloir une autre.");
+                        HAS_LINUX = true;
                     } else {
                         writeMessage("Baste - Coucou, je repense à du Bash aujourd'hui...");
                     }
@@ -721,7 +721,7 @@ class Main extends Program {
                     }
                 }
             } else if (a == getKeyForCommandUID(KEY_START_LESSON)) {
-                if (!currentMap.equals("classroom")) {
+                if (!currentMap.equals("salle-de-classe")) {
                     return;
                 }
 
@@ -1003,7 +1003,7 @@ class Main extends Program {
                 // suffit de vérifier s'il a parlé à Baste.
                 if (!MET_BASTE) {
                     return;
-                } else if (!COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME && currentMap.equals("cellule-du-joueur")) {
+                } else if (!COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME && currentMap.equals("votre-cellule")) {
                     return;
                 }
                 teleportPlayerToNewMap(currentColor.toMap, currentColor.toX, currentColor.toY);
@@ -1620,7 +1620,7 @@ class Main extends Program {
         int equalsRowLength = getGUIWidth(map);
         printEqualsRow(equalsRowLength);
         printEmptyLines(GUI_VERTICAL_MARGIN);
-        println("(" + map.name + ")");
+        println("(" + formatMapName(map.name) + ")");
         for (int lig=0;lig<mapHeight;lig++) {
             print(repeat(" ", GUI_HORIZONTAL_MARGIN));
             for (int col=0;col<mapWidth;col++) {
@@ -1636,6 +1636,16 @@ class Main extends Program {
         printEmptyLines(GUI_VERTICAL_MARGIN + 1); // +1 pour la ligne réservée à l'heure
         printEqualsRow(equalsRowLength);
         displayCommandsPanel();
+    }
+
+    /**
+     * Formatte le nom d'une carte pour que ce soit plus joli à lire.
+     * Par exemple : "salle-de-controle" deviendra "Salle de controle"
+     * @param name Le nom de la map (nom du fichier sans le '.csv' à la fin)
+     * @return Le nom de la carte que l'on peut afficher à l'utilisateur.
+     */
+    String formatMapName(String name) {
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1).replaceAll("-", " ");
     }
 
     /**
@@ -1655,7 +1665,7 @@ class Main extends Program {
                     clearLine();
                     continue;
                 }
-                if (COMMANDS[i].uid.equals(KEY_START_LESSON) && (CURRENT_LESSON != null || !currentMap.equals("classroom"))) {
+                if (COMMANDS[i].uid.equals(KEY_START_LESSON) && (CURRENT_LESSON != null || !currentMap.equals("salle-de-classe"))) {
                     clearLine();
                     continue;
                 }
