@@ -1,3 +1,9 @@
+import java.util.function.Consumer;
+
+interface FilterFunction {
+  boolean run(FileElement element);
+}
+
 class FileElement {
   Element type;
   String name;
@@ -43,6 +49,26 @@ class FileElement {
       copy[copy.length-1] = newElement;
       subElements = copy;
     }
+  }
+
+  /**
+   * Checks if one of the files contained in this folder matches a filter condition, recursively.
+   * @param filter The filter function.
+   * @return A boolean that indicates whether the file is contained in this folder or not.
+   */
+  public boolean doesContainFile(FilterFunction filter) {
+    if (type == Element.FOLDER) {
+      for (int i = 0; i < subElements.length; i++) {
+        if (filter.run(subElements[i])) {
+          return true;
+        } else {
+          if (subElements[i].type == Element.FOLDER && subElements[i].doesContainFile(filter)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   /**

@@ -10,7 +10,6 @@
  */
 class Dialog {
   // Ce message appartient à un groupe unique. Les mesages de ce groupe vont s'enchainer.
-  // Des groupes particuliers existent, ils sont donc strictement inférieurs à 0 et traîtés différement.
   int group; 
   int colorIndex; // Le numéro de la couleur interactive (= le numéro unique du pnj)
   String map; // Un dialogue peut n'être accessible que dans une map particulière (outside_bibliotheque par exemple), `null` s'il n'y a pas de condition

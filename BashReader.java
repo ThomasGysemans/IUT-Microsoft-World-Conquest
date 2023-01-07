@@ -33,7 +33,8 @@ class BashReader {
     Plus d'informations pour voir le contenu d'un fichier, tapez : man cat
     Plus d'informations pour voir le contenu de l'ordinateur, tapez : man ls
     Plus d'informations pour encoder ou décoder un texte secret encrypté, tapez : man base64
-    Toutes les autres commandes disponibles : pwd, echo, tr, exit.
+    Plus d'informations pour copier le contenu d'un fichier ou d'un dossier, tapez : man cp
+    Toutes les autres commandes disponibles : pwd, echo, tr, exit, head, tail, grep
   """;
 
   final Hashtable<String, String> MANUAL = new Hashtable<String, String>() {{

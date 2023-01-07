@@ -73,6 +73,7 @@ class Main extends Program {
     final String FRENCH_LESSONS_PATH = "../assets/lessons/french.csv";
     final String MATHS_LESSONS_PATH = "../assets/lessons/maths.csv";
     final String HISTORY_LESSONS_PATH = "../assets/lessons/history.csv";
+    final String PRISONERS_PATH = "../assets/0-prisoners.csv";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
@@ -95,6 +96,7 @@ class Main extends Program {
     Lesson[] FRENCH_LESSONS;
     Lesson[] MATHS_LESSONS;
     Lesson[] HISTORY_LESSONS;
+    String[] PRISONERS_DIALOGS;
     int selectedLessonAnswer = 1;
     int selectedLessonAnswerPosY = 0;
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
@@ -123,41 +125,75 @@ class Main extends Program {
 
     // Toutes les variables globales liées à la progression du joueur
     // ----
-    boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
-    boolean LOCK_KEYS = false;
-    boolean WANTS_TO_SLEEP = false;
-    // Ces deux variables sont là pour écouter et recevoir l'input de l'utilisateur,
-    // quand on veut qu'il écrive quelque chose (une commande BASH par exemple).
-    boolean WAITING_FOR_USER_INPUT = false;
-    String INPUT = ""; // on enregistre ce qu'il écrit ici
-    // Dans cet ordre spécifique pour commencer à écrire du Bash
+    // Dans cet ordre spécifique
+    boolean MET_BASTE = false;
+    boolean KIDNAPPING = false;
+    boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
     boolean DISCOVERED_CONTROL_PC = false;
     boolean HAS_LINUX = false; // la clé USB donnée par Baste
     boolean HAS_USB_KEY = false; // la clé USB donnée par Mathieu
     boolean HAS_PASSWORD = false;
+    boolean HAS_COPIED_SECRET_FILES = false;
+
+    // Variables de contrôle de l'état
+    // ---
+    boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
+    boolean LOCK_KEYS = false;
+    boolean WANTS_TO_SLEEP = false;
+
+    // Ces deux variables sont là pour écouter et recevoir l'input de l'utilisateur,
+    // quand on veut qu'il écrive quelque chose (une commande BASH par exemple).
+    boolean WAITING_FOR_USER_INPUT = false;
+    String INPUT = ""; // on enregistre ce qu'il écrit ici
+    int CURRENT_NUM_OF_LINES_IN_OUTPUT = 13;
 
     int PC_INDEX;
     int BASTE_INDEX;
     int MATHIEU_INDEX;
     int BED_INDEX;
     int PC_CONTROL_INDEX;
-    boolean MET_BASTE = false;
-    boolean KIDNAPPING = false;
-    boolean COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME = false; // une fois dans la prison
+    int PRISONER_INDEX;
     Lesson CURRENT_LESSON = null;
     boolean WAITING_FOR_ANSWER_TO_LESSON = false;
     int LAST_LESSON_INDEX = -1;
 
     // En ce qui concerne l'interpréteur Bash :
+    final String BASE64_SECRET_CONTENT = "Tm9tLFByw6lub20sQ2l0YXRpb24sUm9sZQpHYXRlcyxCaWxsLCJTaSB2b3VzIHZvdWxleiB1bmUgY2l0YXRpb24sIHByZW5leiByZW5kZXotdm91cy4iLEZvbmRhdGV1cgpDZW5hLEpvaG4sIkFuZCBoaXMgbmFtZSBpcyAhIixCb3hldXIKQmFzdGUsSnVsaWVuLCJMZXMgb3JkaW5hdGV1cnMsIGMnZXN0IHN0dXBpZGUiLEFuY2llbi1Ew6l0ZW51Ck1hdGhpZXUsUGhpbGlwcGUsIkplIGNvbXByZW5kcyBwYXMgY2UgcXVpIGVzdCBudWwgYXZlYyBBY2Nlc3M6IHRvdXQgZXN0IGfDqW5pYWwgISBFbiBwbHVzIMOnYSBjb8O7dGUgcXVlIDEgMDAwIDAwMOKCrCIsR2FyZGUKbMOrb04sY3RyY3RyY3RyYMOtb04sIkplIHZhaXMgYXZvaXIgNi8yMCBhdSBEUyIsUMOocmUtTm/Dq2wKRGFtYXktR2xvcmlldXgsSGlwcG9seXRlLCJKJ2FpIG1pcyB1biBmaWNoaWVyIHRleHRlICd3b2xvbG8nIHN1ciBsZSBQQyBkZSBUaG9tYXMuIElsIGZhaXQgNiBHQiIsR2FyZGUKQm91aW4sSnVsaWVuLCJKJ2FpIGxlIG3Dqm1lIHByw6lub20gcXVlIG1vbiBpZMO0bGUiLEFuY2llbi1Ew6l0ZW51ClJvdXNzZWwsTWF0dGhpYXMsIlF1J2VzdC1jZSBxdWUgamUgZm91cyBsw6A/IixEw6ltaXNzaW9ubsOpClNvY290YSxDb3JlbnRpbiwiUXVpIHByb3Rlc3RlIGVzdCB1biBlbm5lbWksIHF1aSBzJ29wcG9zZSBlc3QgdW4gY2FkYXZyZSIsRGljdGF0ZXVyCkdvbWV6LFRob21hcywiTW9uIGF2b2NhdCBtJ2EgaW50ZXJkaXQgZGUgZGl2dWxndWVyIG1vbiBpZMOpZSBkZSBwaHJhc2UgZCdhY2Nyb2NoZSIsQW5jaWVuLUTDqXRlbnUKRGVkb24sQWxleGFuZHJlLCJmb3J0IERldHJpY2sgYSBwcm9iYWJsZW1lbnQgdGVybWluw6kgdW5lIHBhcnRpZSBkZXMgdHJhdmF1eCBkZSBsJ3VuaXTDqSA3MzEgbWFpcyBjJ2VzdCBldXggbGVzIHNhdXZldXJzLCBjb21iaWVuIGQnYXV0cmVzIG1lbnNvbmdlcyBsZSBjb25zZWlsIGEtdC1pbCByw6lwYW5kdSA/IixQeXJvbWFuZQpJc2thayxBbGltLCJKJ2VuIGFpIG1hcnJlIGRlIGNlIGJvdWxvdC4uLiBKZSB2ZXV4IHJlbnRyZXIgY2hleiBtb2kiLEdhcmRlCk1hcmxhcmQsU2FzaGEsIkplIHN1aXMgZW50cmFpbiBkZSBmYWlyZSB1bmUgaGlzdG9pcmUgc3VyIGRlcyB2aWV1eCBxdWkgam91ZW50IGF1IHNjcmFiYmxlIHBvdXIgdW4gZGV2b2lyIGltcG9ydGFudCIsQW5pbWF0ZXVyClRvdXJuZXVyLEF5bWVyaSwiVm91cyBzYXZleiBxdW9pPyBFaCBiYWggZmV1ciAhIixEYW5zZXVyCkJsb3QsTWF4aW1lLCJBbW9ndXMiLEFuY2llbi1Ew6l0ZW51Cldvem5pYWssSsOpcsO0bWUsIlZpdmUgUHl0aG9uICEiLEdhcmRlCkJvdXJkZWF1LFRvbSwiVmVuZXogb24gam91ZSDDoCBGYWxsIEd1eXMiLEFuY2llbi1Ew6l0ZW51CkRlbW9yeSxMw6lhLCJXaG8gbWFrZXMgdGhlIG1hbGluIGZhbGxzIGluIHRoZSByYXZpbiIsR2FyZGUKQmFuc2UsQW50b2luZSwiSmUgc3VpcyBwYXMgZGFucyBsZSBGQ0MsIG1haXMgamUgZGlyYWlzIHBhcyBxdWUgamUgbGUgZMOpdGVzdGUgbm9uIHBsdXMuLi4iLEdhcmRlCkJvdW1hbnNvdXIsTWFuZWwsIkonYWkgcGVyZHUgbW9uIDUwLzUwIHN1ciBHZW5zaGluLCBtZSBwYXJsZXogcGFzIixHYXJkZQpGb3VnbmllLEFudGh5bWUsIkwnRVBTSSBjJ2VzdCBwYXMgZGUgbCdhcm5hcXVlIGplIHRyb3V2ZSIsR2FyZGUKRGVjcm9peCxDYW5kaWNlLCJKZSB2YWlzIHRvdXQgY2Fzc2VyIixHYXJkZQpNYW1hc2l0YSxMdWRtaWxsYSwiQydlc3QgcGFzIGNvbW1lIMOnYSBxdSdvbiBpbWFnaW5lIGxhIHZpZSwgcGFzIGNvbW1lIMOnYSIsR2FyZGUKTGVjbGVyY3EsTGF1cmVudCwiVnJvb29tIixHYXJkZQpEZWxhaGF5ZSxLaWxpYW4sIkFoIHp1dCwgYydlc3QgcmVwYXJ0aSBtb24ga2lraSIsR2FyZGUKw5Z6dGVwZSxZZWxpeiwiTGVzIGxhcGlucyBjJ2VzdCBtZXMgY29wYWlucyIsR2FyZGU=";
     final FileElement root = new FileElement(
         "/", "/", new FileElement[]{
             new FileElement("Bureau", "/Bureau", new FileElement[]{ new FileElement("answer_to_life.txt", "/Bureau/answer_to_life.txt", "42") }),
             new FileElement("Chien", "/Chien", new FileElement[]{ new FileElement("photo_chien1.jpg", "/Chien/photo_chien1.jpg"), new FileElement("photo_chien2.jpg", "/Chien/photo_chien2.jpg"), new FileElement("photo_chien3.png", "/Chien/photo_chien3.png") }),
             new FileElement("Famille", "/Famille", new FileElement[]{ new FileElement("photo_famille1.jpg", "/Famille/photo_famille1.jpg") }),
-            new FileElement(".Microsoft", "/.Microsoft", "bGludXhoaW50LmNvbQo="),
+            new FileElement(".Microsoft", "/.Microsoft", BASE64_SECRET_CONTENT),
         }
     );
-    final BashReader bashProcess = new BashReader("/", root, () -> { TIME_PASSING=true;WAITING_FOR_USER_INPUT=false;clearDialogAndMessage(); });
+    /**
+     * Quand l'utilisateur quitte le PC avec la commande BASH "exit",
+     * nous devons vérifier s'il a copié les données confidentielles selon le plan.
+     * Nous devons également relancer le temps et supprimer l'interface.
+     */
+    final Runnable onExit = () -> {
+        TIME_PASSING=true;
+        WAITING_FOR_USER_INPUT=false;
+        clearDialogAndMessage();
+        for (int i = 0; i < root.subElements.length; i++) {
+            if (root.subElements[i].name.equals("USB-Mathieu")) {
+                if (root.subElements[i].doesContainFile((FileElement element) -> {
+                    if (element.type == Element.FILE) {
+                        String content = element.fileContent;
+                        if (content.startsWith(BASE64_SECRET_CONTENT.substring(0,10))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })) {
+                    HAS_COPIED_SECRET_FILES = true;
+                }
+                break;
+            }
+        }
+    };
+    final BashReader bashProcess = new BashReader("/", root, onExit);
 
     void algorithm() {
         loadMainMenu();
@@ -241,6 +277,7 @@ class Main extends Program {
             initializeAllCredits();
             initializeHelp();
             initializeAllLessons();
+            initializeAllPrisoners();
 
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
@@ -325,8 +362,6 @@ class Main extends Program {
                         case 4:
                             achievementsPage();
                             break;
-                        default:
-                            println("HOLD ON!! Fix your code, bro! Are you trying to add a page or something?");
                     }
                     break;
                 default:
@@ -344,18 +379,21 @@ class Main extends Program {
                     clearLine();
                     saveCursorPosition();
                     int h = getTotalHeight()+6;
-                    for (int i = 0; i < 15; i++) {
+                    for (int i = 0; i <= (CURRENT_NUM_OF_LINES_IN_OUTPUT < 13 ? 13 : CURRENT_NUM_OF_LINES_IN_OUTPUT)+2; i++) {
                         clearLine();
                         moveCursorTo(0,h+i);
                     }
                     restoreCursorPosition();
                     print("\r> ");
                     saveCursorPosition();
-                    if (INPUT.trim().length() == 0) {
+                    String trimmedInput = INPUT.trim();
+                    if (trimmedInput.length() == 0) {
                         return;
                     }
-                    BashResult result = bashProcess.executeCommand(bashProcess.parseCommand(INPUT.trim()));
-                    println("\n\n" + result.toString(true));
+                    BashResult result = bashProcess.executeCommand(bashProcess.parseCommand(trimmedInput));
+                    String output = result.toString(true);
+                    CURRENT_NUM_OF_LINES_IN_OUTPUT = output.length() - output.replaceAll("\\n", "").length();
+                    println("\n\n" + output);
                     restoreCursorPosition();
                     INPUT = "";
                     return;
@@ -467,8 +505,10 @@ class Main extends Program {
                             currentHelpIndex = (COMMUNICATED_WITH_BASTE_FOR_THE_FIRST_TIME ? 3 : 0);
                         } else if (DISCOVERED_CONTROL_PC && !HAS_LINUX) {
                             currentHelp = getHelpOfGroup(1);
-                        } else if (HAS_LINUX) {
+                        } else if (HAS_LINUX && !HAS_PASSWORD) {
                             currentHelp = getHelpOfGroup(2);
+                        } else if (HAS_PASSWORD) {
+                            currentHelp = getHelpOfGroup(3);
                         }
                         writeHelp(currentHelp[currentHelpIndex]);
                         if (length(currentHelp) > 1) {
@@ -528,6 +568,13 @@ class Main extends Program {
                     }
                     printEmptyLine();
                     println("Il reste " + (deadline - day) + " jour" + (deadline - day >= 2 ? 's' : "") + " avant la fin!");
+                } else if (nearestInteractiveCell == PRISONER_INDEX) {
+                    if (random() < 0.05) {
+                        writeMessage("Détenu - \"C'est bientôt l'anniversaire du directeur, le 01 septembre.\"");
+                        HAS_PASSWORD = true;
+                    } else {
+                        writeMessage("Détenu - " + PRISONERS_DIALOGS[(int)(random()*length(PRISONERS_DIALOGS))].replaceAll("\\$", ","));
+                    }
                 } else if (nearestInteractiveCell == BED_INDEX) {
                     if (WANTS_TO_SLEEP) {
                         // On revérifie l'heure ici car il peut se passer plusieurs heures 
@@ -593,8 +640,8 @@ class Main extends Program {
                     writeMessage("Mathieu - Je t'ai vu parlé à Baste, et je suis prêt à t'aider. Tiens, la clé USB dont tu as besoin.");
                     root.appendFileElement(
                         new FileElement("USB-Mathieu", "/USB-Mathieu", new FileElement[]{
-                            new FileElement("transp_cours21_handout-1.pdf", "/USB/transp_cours21_handout-1.pdf"),
-                            new FileElement("transports-marchandises.mcd", "/USB/transports-marchandises.mcd"),
+                            new FileElement("transp_cours21_handout-1.pdf", "/USB-Mathieu/transp_cours21_handout-1.pdf"),
+                            new FileElement("transports-marchandises.mcd", "/USB-Mathieu/transports-marchandises.mcd"),
                         })
                     );
                     root.appendFileElement(
@@ -1050,7 +1097,7 @@ class Main extends Program {
      * @return Un booléan indiquant si cette couleur est interactive ou non.
      */
     boolean isCellInteractive(int cell) {
-        return cell != -1 && (COLORS[cell].i || cell == TV_INDEX || cell == PC_CONTROL_INDEX);
+        return cell != -1 && (COLORS[cell].i || cell == TV_INDEX || cell == PRISONER_INDEX || cell == PC_CONTROL_INDEX);
     }
 
     /**
@@ -1314,6 +1361,7 @@ class Main extends Program {
                 case "Bed": BED_INDEX = colorIndex; break;
                 case "PC_CONTROL": PC_CONTROL_INDEX = colorIndex; break;
                 case "Mathieu": MATHIEU_INDEX = colorIndex; break;
+                case "Prisoner": PRISONER_INDEX = colorIndex; break;
             }
         }
     }
@@ -1505,6 +1553,16 @@ class Main extends Program {
         l.answers = answers;
         l.goodAnswer = goodAnswer;
         return l;
+    }
+
+    /**
+     * Initialise tous les dialogues aléatoires des prisoniers.
+     */
+    void initializeAllPrisoners() {
+        CSVFile file = loadCSV(PRISONERS_PATH);
+        int n = rowCount(file);
+        PRISONERS_DIALOGS = new String[n-1];
+        for (int y = 1; y < n; y++) PRISONERS_DIALOGS[y-1] = getCell(file, y, 0);
     }
 
     /**
@@ -1803,8 +1861,8 @@ class Main extends Program {
      * C'est le moment de parler d'une dinguerie...
      * En bref, la façon dont fonctionne `enableKeyTypedInConsole` c'est de changer
      * le mode d'entrée des commandes du terminal via `stty raw`.
-     * Le problème n'est pas très clair, mais en gros, quand on fait un clearMyScreen(),
-     * tout en étant en mode `raw`, les "carriage return" sont oubliés (\r) lors de l'écriture d'un '\n', et par conséquent,
+     * Le problème n'est pas très clair, mais en gros, quand on fait un clearScreen(),
+     * tout en étant en mode `raw`, les "carriage return" sont oubliés (\r) lors de l'ajout d'un '\n', et par conséquent,
      * on obtient le "staircase effect" comme décrit ci-dessous.
      * Nous avons donc manuellement ajouté le '\r' aux méthodes `println`.
      *
