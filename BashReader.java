@@ -16,13 +16,18 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Base64;
 
-class BashReader {
-  final String COMMAND_REGEX = "([a-zA-Z\\d]+)((?: -{1,2}[a-z]+)*)([ \\w=./+\\\\\\-'\\\"]*)\\|?"; // I call this a nice Tuesday
-  final String ANSI_FOUND_MATCH = "\u001b[38;2;59;179;23m";
-  final String ANSI_FOUND_PATTERN = "\u001b[38;2;24;56;217m";
-  final String ANSI_RESET = "\033[0m";
+interface HistoryHandler {
+  String onUp();
+  String onDown();
+}
 
-  final String HELP = """
+class BashReader {
+  protected final String COMMAND_REGEX = "([a-zA-Z\\d]+)((?: -{1,2}[a-z]+)*)([ \\w=./+\\\\\\-'\\\"]*)\\|?"; // I call this a nice Tuesday
+  protected final String ANSI_FOUND_MATCH = "\u001b[38;2;59;179;23m";
+  protected final String ANSI_FOUND_PATTERN = "\u001b[38;2;24;56;217m";
+  protected final String ANSI_RESET = "\033[0m";
+
+  protected final String HELP = """
     Donnez des instructions à l'ordinateur au moyen de commandes simples.
     Écrivez une commande puis tapez sur la touche Entrer de votre clavier.
     L'ordinateur contient deux types d'éléments : des dossiers et des fichiers.
@@ -37,7 +42,7 @@ class BashReader {
     Toutes les autres commandes disponibles : pwd, echo, tr, exit, head, tail, grep
   """;
 
-  final Hashtable<String, String> MANUAL = new Hashtable<String, String>() {{
+  public final Hashtable<String, String> MANUAL = new Hashtable<String, String>() {{
     put("base64", """
       La commande \"base64\" vous permet de crypter ou de décrypter un texte secret.
       Crypter un texte signifie qu'il devient illisibile. C'est utile pour cacher un secret.
@@ -156,9 +161,36 @@ class BashReader {
     """);
   }};
 
-  String PWD = "/";
-  FileElement root;
-  Runnable onExit;
+  protected final int HISTORY_MAX_COMMANDS = 20;
+  public String[] history = new String[HISTORY_MAX_COMMANDS]; // the list of the 20 previous commands
+  public int currentHistoryIndex = -1;
+  public final HistoryHandler historyHandler = new HistoryHandler() {
+    public String onUp() {
+      if (currentHistoryIndex + 1 < HISTORY_MAX_COMMANDS) {
+        String previousCommand = history[currentHistoryIndex + 1];
+        if (previousCommand != null) {
+          return history[++currentHistoryIndex];
+        }
+      }
+      if (currentHistoryIndex >= 0) {
+        return history[currentHistoryIndex];
+      } else {
+        return "";
+      }
+    }
+    public String onDown() {
+      if (currentHistoryIndex == 0) {
+        currentHistoryIndex = -1;
+      } else if (currentHistoryIndex - 1 >= 0) {
+        return history[--currentHistoryIndex];
+      }
+      return "";
+    }
+  };
+
+  public String PWD = "/";
+  public FileElement root;
+  public Runnable onExit;
 
   BashReader(String p, FileElement r, Runnable o) {
     PWD = p;
@@ -177,6 +209,13 @@ class BashReader {
    * @return The command and its data. The command can then be executed.
    */
   public BashCommand parseCommand(String command) {
+    // We register the command in the history here
+    // because we can't do it in `executeCommand`
+    // because it is recursive on each subcommand.
+    // Therefore, each sub command, separated from pipes, would be registered too.
+    currentHistoryIndex = -1;
+    appendToHistory(command.toString());
+
     final Pattern pattern = Pattern.compile(COMMAND_REGEX);
     final Matcher matcher = pattern.matcher(command);
     BashCommand bashCommand = new BashCommand();
@@ -223,103 +262,103 @@ class BashReader {
     switch (command.commandName) {
       case "echo":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments == null) {
           if (command.standardInput == null) {
-            return throwError(BashError.EXPECTING_ARGUMENT, command);
+            return makeError(BashError.EXPECTING_ARGUMENT, command);
           }
         }
         return distributePipes(command, new BashResult((command.arguments == null ? command.standardInput : command.arguments[0]).replaceAll("\"|'", "")));
       case "tr":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments != null && command.arguments.length != 2) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.standardInput == null) {
-          return throwError(BashError.EXPECTING_INPUT, command);
+          return makeError(BashError.EXPECTING_INPUT, command);
         }
         return distributePipes(command, new BashResult(command.standardInput.replaceAll(command.arguments[0].replaceAll("\"|'", ""), command.arguments[1].replaceAll("\"|'", ""))));
       case "pwd":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments != null) {
-          return throwError(BashError.UNEXPECTED_ARGUMENT, command);
+          return makeError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         }
         return distributePipes(command, new BashResult(PWD));
       case "cd":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.arguments.length > 1) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         } else if (command.pipes != null) {
-          return throwError(BashError.UNEXPECTED_PIPES, command);
+          return makeError(BashError.UNEXPECTED_PIPES, command);
         }
         Path targetPath = Path.parse(command.arguments[0]);
         if (targetPath == null) {
-          return throwError(BashError.PATH_SYNTAX_ERROR, command);
+          return makeError(BashError.PATH_SYNTAX_ERROR, command);
         }
         FileElement target = getFileElementFrom(targetPath);
         if (target == null) {
-          return throwError(BashError.UNKNOWN_PATH, command);
+          return makeError(BashError.UNKNOWN_PATH, command);
         } else if (target.type != Element.FOLDER) {
-          return throwError(BashError.NOT_A_DIRECTORY, command);
+          return makeError(BashError.NOT_A_DIRECTORY, command);
         }
         PWD = target.pwd;
         return new BashResult();
       case "ls":
         if (command.options != null) {
           if (command.options.length >= 2 || !command.options[0].equals("-a")) {
-            return throwError(BashError.UNKNOWN_OPTION, command);
+            return makeError(BashError.UNKNOWN_OPTION, command);
           }
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         } else if (command.arguments != null && command.arguments.length > 1) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         }
         FileElement lsTarget = getFileElementFrom(command.arguments != null ? command.arguments[0] : PWD);
         if (lsTarget == null) {
-          return throwError(BashError.UNKNOWN_PATH, command);
+          return makeError(BashError.UNKNOWN_PATH, command);
         } else if (lsTarget.type != Element.FOLDER) {
-          return throwError(BashError.NOT_A_DIRECTORY, command);
+          return makeError(BashError.NOT_A_DIRECTORY, command);
         }
         String f = getFileElementsHierarchyBasedOnPWD(lsTarget, command.options != null && command.options[0].equals("-a"));
         return distributePipes(command, new BashResult(f));
       case "cat":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.arguments.length > 1) {
-          return throwError(BashError.UNEXPECTED_ARGUMENT, command);
+          return makeError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         }
         Path catPath = Path.parse(command.arguments[0]);
         if (catPath == null) {
-          return throwError(BashError.PATH_SYNTAX_ERROR, command);
+          return makeError(BashError.PATH_SYNTAX_ERROR, command);
         }
         FileElement catFile = getFileElementFrom(catPath);
         if (catFile == null) {
-          return throwError(BashError.UNKNOWN_PATH, command);
+          return makeError(BashError.UNKNOWN_PATH, command);
         } else if (catFile.type != Element.FILE) {
-          return throwError(BashError.NOT_A_FILE, command);
+          return makeError(BashError.NOT_A_FILE, command);
         }
         return distributePipes(command, new BashResult(catFile.fileContent));
       case "base64":
         if (command.standardInput != null && command.arguments != null) {
-          return throwError(BashError.UNEXPECTED_ARGUMENT, command);
+          return makeError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.standardInput == null && command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.standardInput == null && command.arguments != null && command.arguments.length > 1) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.options != null && (command.options.length > 1 || !command.options[0].equals("--decode"))) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         }
         String base64input = (command.standardInput != null ? command.standardInput : command.arguments[0]).replaceAll("\"|'", "");
         String base64output = "";
@@ -330,42 +369,42 @@ class BashReader {
             base64output = Base64.getEncoder().encodeToString(base64input.getBytes());
           }
         } catch (Exception e) {
-          return throwError(BashError.UNEXPECTED_ERROR, command);
+          return makeError(BashError.UNEXPECTED_ERROR, command);
         }
         return distributePipes(command, new BashResult(base64output));
       case "help":
         if (command.arguments != null) {
-          return throwError(BashError.UNEXPECTED_ARGUMENT, command);
+          return makeError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         }
         return distributePipes(command, new BashResult(HELP));
       case "exit":
         if (command.arguments != null) {
-          return throwError(BashError.UNEXPECTED_ARGUMENT, command);
+          return makeError(BashError.UNEXPECTED_ARGUMENT, command);
         } else if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.standardInput != null) {
-          return throwError(BashError.UNEXPECTED_INPUT, command);
+          return makeError(BashError.UNEXPECTED_INPUT, command);
         } else if (command.pipes != null) {
-          return throwError(BashError.UNEXPECTED_PIPES, command);
+          return makeError(BashError.UNEXPECTED_PIPES, command);
         }
         PWD="/";
         onExit.run();
         return new BashResult();
       case "head":
         if (command.options != null && (!command.options[0].equals("-n") || command.options.length > 1)) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.options == null && command.arguments != null) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.standardInput == null) {
-          return throwError(BashError.EXPECTING_INPUT, command);
+          return makeError(BashError.EXPECTING_INPUT, command);
         }
         int headN = command.arguments != null ? Integer.parseInt(command.arguments[0]) : 5;
         if (headN < 0) {
-          return throwError(BashError.INVALID_ARGUMENTS, command);
+          return makeError(BashError.INVALID_ARGUMENTS, command);
         }
         String headContent = command.standardInput.trim();
         int headLinePos = headContent.indexOf('\n');
@@ -375,15 +414,15 @@ class BashReader {
         return distributePipes(command, new BashResult(headLinePos <= 0 ? headContent : headContent.substring(0,headLinePos)));
       case "tail":
          if (command.options != null && (!command.options[0].equals("-n") || command.options.length > 1)) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.options == null && command.arguments != null) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.standardInput == null) {
-          return throwError(BashError.EXPECTING_INPUT, command);
+          return makeError(BashError.EXPECTING_INPUT, command);
         }
         int tailN = command.arguments != null ? Integer.parseInt(command.arguments[0]) : 5;
         if (tailN < 0) {
-          return throwError(BashError.INVALID_ARGUMENTS, command);
+          return makeError(BashError.INVALID_ARGUMENTS, command);
         }
         String tailContent = command.standardInput.trim();
         int tailLinePos = tailContent.lastIndexOf('\n');
@@ -393,11 +432,11 @@ class BashReader {
         return distributePipes(command, new BashResult(tailLinePos <= 0 ? tailContent : tailContent.substring(tailLinePos)));
       case "grep":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.arguments.length > 1) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         }
         final Pattern grepPattern = Pattern.compile(command.arguments[0]);
         final String[] grepFileLines = command.standardInput.split("\n");
@@ -410,23 +449,23 @@ class BashReader {
         return distributePipes(command, new BashResult(grepContent));
       case "cp":
         if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         } else if (command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.arguments.length != 2) {
-          return throwError(BashError.INVALID_ARGUMENTS, command);
+          return makeError(BashError.INVALID_ARGUMENTS, command);
         } else if (command.pipes != null) {
-          return throwError(BashError.UNEXPECTED_PIPES, command);
+          return makeError(BashError.UNEXPECTED_PIPES, command);
         }
         Path cp1 = Path.parse(command.arguments[0].startsWith("./") ? command.arguments[0].substring(2) : command.arguments[0]);
         Path cp2 = Path.parse(command.arguments[1].startsWith("./") ? command.arguments[1].substring(2) : command.arguments[1]);
         if (cp1 == null || cp2 == null) {
-          return throwError(BashError.PATH_SYNTAX_ERROR, command);
+          return makeError(BashError.PATH_SYNTAX_ERROR, command);
         }
         FileElement cp1File = getFileElementFrom(cp1);
         FileElement cp2File = getFileElementFrom(cp2);
         if (cp1File == null) {
-          return throwError(BashError.UNKNOWN_PATH, command);
+          return makeError(BashError.UNKNOWN_PATH, command);
         }
         if (cp1File.type == Element.FILE) {
           if (cp2File != null) {
@@ -456,7 +495,7 @@ class BashReader {
             } else {
               parentElement = getFileElementFrom(cp2.getParent());
               if (parentElement == null) {
-                return throwError(BashError.UNKNOWN_PATH, command);
+                return makeError(BashError.UNKNOWN_PATH, command);
               }
             }
 
@@ -471,7 +510,7 @@ class BashReader {
         } else { // The origin is a folder
           if (cp2File != null) {
             if (cp2File.type != Element.FOLDER) {
-              return throwError(BashError.NOT_A_DIRECTORY, command);
+              return makeError(BashError.NOT_A_DIRECTORY, command);
             } else {
               // Merge content of folder 1 into folder 2
               boolean foundSameFilenameDuringMerge = false;
@@ -500,26 +539,26 @@ class BashReader {
               FileElement destination = new FileElement(cp2.fileName, parentElement.pwd + "/" + cp2.fileName, cp1File.copyOfSubElements());
               parentElement.appendFileElement(destination);
             } else {
-              return throwError(BashError.NOT_A_DIRECTORY, command);
+              return makeError(BashError.NOT_A_DIRECTORY, command);
             }
           }
         }
         return new BashResult();
       case "man":
         if (command.arguments == null) {
-          return throwError(BashError.EXPECTING_ARGUMENT, command);
+          return makeError(BashError.EXPECTING_ARGUMENT, command);
         } else if (command.arguments != null && command.arguments.length > 1) {
-          return throwError(BashError.TOO_MANY_ARGUMENTS, command);
+          return makeError(BashError.TOO_MANY_ARGUMENTS, command);
         } else if (command.options != null) {
-          return throwError(BashError.UNKNOWN_OPTION, command);
+          return makeError(BashError.UNKNOWN_OPTION, command);
         }
         String manText = MANUAL.get(command.arguments[0]);
         if (manText == null) {
-          return throwError(BashError.UNKNOWN_COMMAND, command);
+          return makeError(BashError.UNKNOWN_COMMAND, command);
         }
         return distributePipes(command, new BashResult(manText));
       default:
-        return throwError(BashError.UNKNOWN_COMMAND, command);
+        return makeError(BashError.UNKNOWN_COMMAND, command);
     }
   }
 
@@ -630,12 +669,28 @@ class BashReader {
   }
 
   /**
+   * Append to history of commands.
+   * It shifts the whole list by one,
+   * so the new command takes index 0,
+   * and the oldest command is removed.
+   * For example, with `array = ['a', 'b', 'c', 'd', 'e']`, it would become `['newElement' 'a', 'b', 'c', 'd']`
+   * This changes the `history` variable.
+   * @param command The command to be registered.
+   */
+  public void appendToHistory(String command) {
+    for (int i = history.length - 1; i > 0; i--) {
+      history[i] = history[i-1];
+    }
+    history[0] = command;
+  }
+
+  /**
    * Send the error
    * @param error The enum to describe the error
    * @param failingCommand The command that failed.
    * @return The result which contains the reassembled command to be displayed in order to explain the error later.
    */
-  private BashResult throwError(BashError error, BashCommand failingCommand) {
+  private BashResult makeError(BashError error, BashCommand failingCommand) {
     return new BashResult(error, failingCommand.reassembleCommand());
   }
 }

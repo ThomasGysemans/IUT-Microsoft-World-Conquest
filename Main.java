@@ -21,6 +21,8 @@ class Main extends Program {
     final int LEFT_ARROW_KEY = 19;
     final int RIGHT_ARROW_KEY = 20;
     final int ENTER_KEY = 13;
+    final int CONFIRMATION_KEY = 111;
+    final int DENY_KEY = 110;
 
     final String WALKING_COMMAND = "Marcher";
     final String INTERACTIVE_COMMAND = "Interaction";
@@ -75,6 +77,7 @@ class Main extends Program {
     final String HISTORY_LESSONS_PATH = "../assets/lessons/history.csv";
     final String PRISONERS_PATH = "../assets/0-prisoners.csv";
     final String RICK_PATH = "../assets/ascii/rick.txt";
+    final String SECRETS_PATH = "../assets/0-secrets.csv";
     final String PIXEL = "  "; // En réalité, un pixel est deux espaces dont le fond est coloré avec ANSI
     final int PIXEL_SIZE = length(PIXEL); // On aura besoin de cette constante dans le calcul de mouvement vers la droite/gauche
     String currentMap = "bibliotheque"; // la carte actuellement affichée
@@ -93,6 +96,8 @@ class Main extends Program {
     TVInfo[] TV_INFO;
     Credit[] CREDITS;
     Help[] HELP;
+    Secret[] SECRETS;
+    final int SECRETS_TRESHOLD = 5;
     Lesson[] ENGLISH_LESSONS;
     Lesson[] FRENCH_LESSONS;
     Lesson[] MATHS_LESSONS;
@@ -133,12 +138,16 @@ class Main extends Program {
     boolean HAS_USB_KEY = false; // la clé USB donnée par Mathieu
     boolean HAS_PASSWORD = false;
     boolean HAS_COPIED_SECRET_FILES = false;
+    boolean EVASION_STARTED = false;
+    Thread evasionThread; // utilisé pour contrôler le timer lors de l'évasion
+    int evasionRemainingTime = 5; // secondes
 
     // Variables de contrôle de l'état
     // ---
-    boolean TIME_PASSING = false; // dans le prologue, le temps ne passe pas, car il y a une échéance
+    boolean TIME_PASSING = true; // dans le prologue, le temps ne passe pas, car il y a une échéance
     boolean LOCK_KEYS = false;
     boolean WANTS_TO_SLEEP = false;
+    boolean WAITING_CONFIRMATION_TO_END_THE_GAME = false;
 
     // Ces deux variables sont là pour écouter et recevoir l'input de l'utilisateur,
     // quand on veut qu'il écrive quelque chose (une commande BASH par exemple).
@@ -152,6 +161,12 @@ class Main extends Program {
     int BED_INDEX;
     int PC_CONTROL_INDEX;
     int PRISONER_INDEX;
+    int PRISONER_INDEX_IN_CLASSROOM;
+    int GROUND_INDEX;
+    int GUARD_INDEX;
+    int CELL_INDEX;
+    int ACCESS_TO_COURTYARD;
+    int PRISON_DOOR_INDEX;
     int TV_INDEX; // l'indice de la couleur correspondant à la télé de la cellule, obtenu en lisant `0-tv.csv`
     int lastIndexOfTVInfo = 0; // l'indice de la dernière news affichée
     Lesson CURRENT_LESSON = null;
@@ -181,8 +196,7 @@ class Main extends Program {
             if (root.subElements[i].name.equals("USB-Mathieu")) {
                 if (root.subElements[i].doesContainFile((FileElement element) -> {
                     if (element.type == Element.FILE) {
-                        String content = element.fileContent;
-                        if (content.startsWith(BASE64_SECRET_CONTENT.substring(0,10))) {
+                        if (element.fileContent.startsWith(BASE64_SECRET_CONTENT.substring(0,10))) {
                             return true;
                         }
                     }
@@ -205,8 +219,8 @@ class Main extends Program {
             // Pour des raisons inconnues, time.interrupt() interrompt bien le thread,
             // mais on arrive pas à le remettre en route.
             // Donc on fait en sorte ici que `hour` et `day`
-            // ne soient incrémentés que lorsqu'on est sur la page de jeu
-            if (page == Page.GAME && TIME_PASSING && KIDNAPPING) {
+            // ne soient incrémentés que lorsqu'on le veut
+            if (page == Page.GAME && TIME_PASSING && KIDNAPPING) { // KIDNAPPING = true signifie que le kidnapping est fini, c'est nécessaire pour s'assurer que le temps reste bloqué si on quitte le jeu
                 hour++;
                 if (hour == 24) {
                     hour = 0;
@@ -279,7 +293,7 @@ class Main extends Program {
             initializeHelp();
             initializeAllLessons();
             initializeAllPrisoners();
-
+            initializeAllSecrets();
             delay(250); // au cas où le chargement est trop rapide, on veut que le joueur le voit
 
             restoreCursorPosition(); // on va écrire à la place du mot "Chargement..."
@@ -398,6 +412,10 @@ class Main extends Program {
                     restoreCursorPosition();
                     INPUT = "";
                     return;
+                } else if (a == TOP_ARROW_KEY) {
+                    INPUT = bashProcess.historyHandler.onUp();
+                } else if (a == BOTTOM_ARROW_KEY) {
+                    INPUT = bashProcess.historyHandler.onDown();
                 } if (a >= 32 && a < 127) { // Si l'utilisateur écrit quelque chose, on veut qu'il se limite aux caractères simples d'ASCII.
                     INPUT += (char)a;
                 } else if (a == 127 && INPUT.length() >= 1) {
@@ -410,12 +428,63 @@ class Main extends Program {
                 print("\r> " + INPUT);
                 
                 return;
+            } else if (WAITING_CONFIRMATION_TO_END_THE_GAME) {
+                if (a == CONFIRMATION_KEY) {
+                    EVASION_STARTED = true;
+                    TIME_PASSING = false; // pas besoin du temps normal
+                    time = null;
+                    removeCommandsPanel();
+                    clearDialogAndMessage();
+                    COLORS[GUARD_INDEX].ANSI = COLORS[GROUND_INDEX].ANSI; // supprime définitivement les gardes
+                    COLORS[GUARD_INDEX].x = true; // supprime définitivement les gardes
+                    COLORS[MATHIEU_INDEX].ANSI = COLORS[GROUND_INDEX].ANSI;
+                    COLORS[MATHIEU_INDEX].x = true;
+                    COLORS[BASTE_INDEX].ANSI = COLORS[GROUND_INDEX].ANSI;
+                    COLORS[BASTE_INDEX].x = true;
+                    COLORS[CELL_INDEX].ANSI = COLORS[GROUND_INDEX].ANSI;
+                    COLORS[CELL_INDEX].x = true;
+                    COLORS[PRISONER_INDEX_IN_CLASSROOM].ANSI = COLORS[GROUND_INDEX].ANSI;
+                    COLORS[PRISONER_INDEX_IN_CLASSROOM].x = true;
+                    COLORS[ACCESS_TO_COURTYARD].t = false;
+                    COLORS[PRISON_DOOR_INDEX].ANSI = COLORS[GROUND_INDEX].ANSI;
+                    COLORS[PRISON_DOOR_INDEX].x = true;
+                    COLORS[PRISON_DOOR_INDEX].t = true;
+                    COLORS[PRISON_DOOR_INDEX].movX = 0;
+                    COLORS[PRISON_DOOR_INDEX].movY = -1;
+                    printEvasionHelp();
+                    printEmptyLine();
+                    evasionThread = new Thread(() -> {
+                        try {
+                            evasionThread.sleep(1000);
+                            evasionRemainingTime--;
+                            if (evasionRemainingTime < 0) {
+                                evasionThread = null;
+                                // todo: game over
+                                return;
+                            }
+                            saveCursorPosition();
+                            // Entre le moment où on sauvegarde la position du curseur,
+                            // et le moment où on écrit,
+                            // il faut se dépêcher pour limiter les erreurs d'affichage
+                            println("Il vous reste " + evasionRemainingTime + " secondes.   ");
+                            restoreCursorPosition();
+                            evasionThread.run();
+                        } catch (Exception e) {
+                            // ignore that
+                        }
+                    });
+                    evasionThread.start();
+                } else if (a == DENY_KEY) {
+                    WAITING_CONFIRMATION_TO_END_THE_GAME = false;
+                    turnOnPC();
+                }
             }
             // On ne peut pas utiliser un `switch` ici
             // car les case doivent être des constantes.
             if (a == getKeyForCommandUID(KEY_QUIT)) {
                 resetState();
                 loadMainMenu();
+                return;
             }
             // Meaning the player's trying to press keys when he's not allowed to move
             if (LOCK_KEYS) {
@@ -482,6 +551,9 @@ class Main extends Program {
             } else if (a == getKeyForCommandUID(KEY_WALK_RIGHT)) {
                 movePlayerToRight();
             } else if (a == getKeyForCommandUID(KEY_CONTACT)) {
+                if (EVASION_STARTED) {
+                    return;
+                }
                 if (TIME_PASSING) { // meaning we met Baste and we got kidnapped, so we're in the cell
                     if (currentHelp != null) {
                         currentHelpIndex++;
@@ -509,8 +581,10 @@ class Main extends Program {
                             currentHelp = getHelpOfGroup(1);
                         } else if (HAS_LINUX && !HAS_PASSWORD) {
                             currentHelp = getHelpOfGroup(2);
-                        } else if (HAS_PASSWORD) {
+                        } else if (HAS_PASSWORD && !HAS_COPIED_SECRET_FILES) {
                             currentHelp = getHelpOfGroup(3);
+                        } else {
+                            currentHelp = getHelpOfGroup(4);
                         }
                         writeHelp(currentHelp[currentHelpIndex]);
                         if (length(currentHelp) > 1) {
@@ -520,6 +594,9 @@ class Main extends Program {
                     }
                 }
             } else if (a == getKeyForCommandUID(KEY_INTERACT)) {
+                if (EVASION_STARTED) {
+                    return;
+                }
                 if (currentDialogs != null) {
                     clearDialogAndMessage();
                     currentGroupIndex++;
@@ -621,11 +698,21 @@ class Main extends Program {
                             if (!HAS_PASSWORD) {
                                 writeMessage("Baste - Il faut que tu trouves le mot de passe. Va te renseigner auprès des autres détenus. Je pense que c'est la date de naissance du directeur.");
                             } else {
-                                writeMessage("Il s'agit du PC qui contrôle toute la prison" + (DISCOVERED_CONTROL_PC && HAS_PASSWORD ? " et tu as déjà trouvé le mot de passe" : "") + " ! Tu peux y entrer des commandes.");
-                                println("À tout moment, entre la commande \"exit\" et appuie sur Entrer pour quitter. Entre \"help\" pour obtenir de l'aide.\n");
-                                print("> ");
-                                TIME_PASSING = false;
-                                WAITING_FOR_USER_INPUT = true;
+                                if (HAS_COPIED_SECRET_FILES) {
+                                    int numberOfSecretsFoundSoFar = 0;
+                                    for (int i = 0; i < SECRETS.length; i++) {
+                                        if (SECRETS[i].wasFound) {
+                                            numberOfSecretsFoundSoFar++;
+                                        }
+                                    }
+                                    if (numberOfSecretsFoundSoFar >= SECRETS_TRESHOLD) {
+                                        writeMessage("Vous avez trouvé suffisamment de secrets pour démarrer l'évasion de la prison. Voulez-vous vous évader maintenant ?");
+                                        println("Appuyez sur la touche [o] pour oui, [n] pour ignorer.");
+                                        WAITING_CONFIRMATION_TO_END_THE_GAME = true;
+                                        return;
+                                    }
+                                }
+                                turnOnPC();
                             }
                         }
                     }
@@ -664,8 +751,29 @@ class Main extends Program {
                             })
                         })
                     );
+                    root.appendFileElement(new FileElement(".CODES-CELLULES", "/.CODES-CELLULES", getSecretCodesFileContent()));
                     HAS_USB_KEY = true;
                 } else {
+                    for (int i = 0; i < SECRETS.length; i++) {
+                        if (SECRETS[i].colorIndex == nearestInteractiveCell) {
+                            clearDialogAndMessage();
+                            if (SECRETS[i].wasFound) {
+                                writeMessage("Vous avez déjà trouvé ce secret.");
+                            } else {
+                                writeMessage(SECRETS[i].message);
+                                printEmptyLine();
+                                printBoldText("Secret trouvé !\n\r");
+                                SECRETS[i].wasFound = true;
+                                for (int y = 0; y < root.subElements.length; y++) {
+                                    if (root.subElements[y].name == ".CODES-CELLULES") {
+                                        root.subElements[y].fileContent = getSecretCodesFileContent();
+                                        break;
+                                    }
+                                }
+                                return;
+                            }
+                        }
+                    }
                     boolean found_one_but_different_map = false;
                     for (int i = 0; i < length(DIALOGS); i++) {
                         if (DIALOGS[i].colorIndex == nearestInteractiveCell) {
@@ -723,7 +831,7 @@ class Main extends Program {
                     }
                 }
             } else if (a == getKeyForCommandUID(KEY_START_LESSON)) {
-                if (!currentMap.equals("salle-de-classe")) {
+                if (EVASION_STARTED || !currentMap.equals("salle-de-classe")) {
                     return;
                 }
 
@@ -999,6 +1107,14 @@ class Main extends Program {
             int shiftX = x - playerX; // le déplacement qui a été réalisé sur l'axe X
             int shiftY = y - playerY; // le déplacement qui a été réalisé sur l'axe Y
             if (shiftX == currentColor.movX && shiftY == currentColor.movY) {
+                // Pour l'évasion de la prison, on ajoute la téléportation dynamiquement
+                // On vérifie ici s'il s'agit bien du bon mouvement pour sortir et c'est ainsi que le jeu s'arrête.
+                if (currentColorIndex == PRISON_DOOR_INDEX) {
+                    // todo: end of the game
+                    clearMyScreen();
+
+                    return;
+                }
                 // Si le joueur est dans la bibliothèque et n'a pas rencontré Baste,
                 // alors il ne doit pas en sortir. C'est propre à la progression du jeu.
                 // Puisqu'il spawn dans la bibliothèque et qu'il n'y a qu'une seule sortie,
@@ -1059,6 +1175,10 @@ class Main extends Program {
         // comme étant la nouvelle position du joueur.
         playerX = x;
         playerY = y;
+
+        if (EVASION_STARTED) {
+            return;
+        }
 
         saveCursorPosition();
         int previousValue = nearestInteractiveCell;
@@ -1143,7 +1263,7 @@ class Main extends Program {
      * Retourne la hauteur du GUI + la hauteur du panneau de commandes.
      */
     int getTotalHeight() {
-        return getGUIHeight(getMapOfName(currentMap)) + getNumberOfCommandsForCategory(CommandCategory.INTERACT);
+        return getGUIHeight(getMapOfName(currentMap)) + NUMBER_OF_INTERACTION_COMMANDS;
     }
 
     /**
@@ -1267,6 +1387,18 @@ class Main extends Program {
     }
 
     /**
+     * Charge l'interface réservée pour la console du PC de la salle de contrôle.
+     * Ceci permet au joueur d'écrire des commandes BASH afin d'avancer dans le jeu. 
+     */
+    void turnOnPC() {
+        writeMessage("Il s'agit du PC qui contrôle toute la prison" + (DISCOVERED_CONTROL_PC && HAS_PASSWORD ? " et tu as déjà trouvé le mot de passe" : "") + " ! Tu peux y entrer des commandes.");
+        println("À tout moment, entre la commande \"exit\" et appuie sur Entrer pour quitter. Entre \"help\" pour obtenir de l'aide.\n");
+        print("> ");
+        TIME_PASSING = false;
+        WAITING_FOR_USER_INPUT = true;
+    }
+
+    /**
      * Lis le fichier contenant toutes les couleurs et autre métadonnées associées à ces couleurs.
      * Chaque couleur a des metadonnées associées à elle qui définissent des propriétés uniques.
      * Elles peuvent avoir les propriétés suivantes :
@@ -1299,7 +1431,7 @@ class Main extends Program {
             r = stringToInt(getCell(colors, y, 2));
             g = stringToInt(getCell(colors, y, 3));
             b = stringToInt(getCell(colors, y, 4));
-            COLORS[y-1] = newColor(r,g,b,x==1);
+            COLORS[stringToInt(getCell(colors, y, 0))] = newColor(r,g,b,x==1);
         }
 
         for (int y=1;y<nTeleportations;y++) {
@@ -1364,6 +1496,12 @@ class Main extends Program {
                 case "PC_CONTROL": PC_CONTROL_INDEX = colorIndex; break;
                 case "Mathieu": MATHIEU_INDEX = colorIndex; break;
                 case "Prisoner": PRISONER_INDEX = colorIndex; break;
+                case "Guard": GUARD_INDEX = colorIndex; break;
+                case "Ground": GROUND_INDEX = colorIndex; break;
+                case "Cell": CELL_INDEX = colorIndex; break;
+                case "Access_to_courtyard": ACCESS_TO_COURTYARD = colorIndex; break;
+                case "Prisoner_classroom": PRISONER_INDEX_IN_CLASSROOM = colorIndex; break;
+                case "Prison_door": PRISON_DOOR_INDEX = colorIndex; break;
             }
         }
     }
@@ -1462,16 +1600,6 @@ class Main extends Program {
         return c == null ? -1 : c.key;
     }
 
-    int getNumberOfCommandsForCategory(CommandCategory category) {
-        int n = 0;
-        for (int i = 0; i < length(COMMANDS); i++) {
-            if (COMMANDS[i].category == category) {
-                n++;
-            }
-        }
-        return n;
-    }
-
     /**
      * Retourne un enum de la catégorie de la commande basée sur le nom de la catégorie telle écrite dans le CSV.
      * @param name Le nom de la catégorie d'une commande.
@@ -1564,7 +1692,36 @@ class Main extends Program {
         CSVFile file = loadCSV(PRISONERS_PATH);
         int n = rowCount(file);
         PRISONERS_DIALOGS = new String[n-1];
-        for (int y = 1; y < n; y++) PRISONERS_DIALOGS[y-1] = getCell(file, y, 0);
+        for (int y=1;y<n;y++) PRISONERS_DIALOGS[y-1] = getCell(file, y, 0);
+    }
+
+    /**
+     * Initialise tous les secrets du jeu pour l'évasion.
+     */
+    void initializeAllSecrets() {
+        CSVFile file = loadCSV(SECRETS_PATH);
+        int n = rowCount(file);
+        SECRETS = new Secret[n-1];
+        for (int y=1;y<n;y++) {
+            Secret secret = new Secret();
+            secret.colorIndex = stringToInt(getCell(file, y, 0));
+            secret.message = getCell(file, y, 1);
+            secret.name = getCell(file, y, 2);
+            secret.code = getCell(file, y, 3);
+            COLORS[secret.colorIndex].i = true;
+            SECRETS[y-1] = secret;
+        }
+    }
+
+    /**
+     * Gets the content of the file named ".CODES-CELLULES".
+     */
+    String getSecretCodesFileContent() {
+        String content = "Entrez au moins " + SECRETS_TRESHOLD + " codes pour déverrouiller toutes les cellules.\n";
+        for (int i = 0; i < SECRETS.length; i++) {
+            content += "    Code " + (i+1) + " : " + (SECRETS[i].wasFound ? SECRETS[i].code : "") + "\n";
+        }
+        return content;
     }
 
     /**
@@ -1637,7 +1794,11 @@ class Main extends Program {
         }
         printEmptyLines(GUI_VERTICAL_MARGIN + 1); // +1 pour la ligne réservée à l'heure
         printEqualsRow(equalsRowLength);
-        displayCommandsPanel();
+        if (!EVASION_STARTED) {
+            displayCommandsPanel();
+        } else {
+            printEvasionHelp();
+        }
     }
 
     /**
@@ -1657,27 +1818,36 @@ class Main extends Program {
      * alors on recrée l'intégralité du panneau en appelant cette fonction.
      */
     void displayCommandsPanel() {
+        removeCommandsPanel();
+        for (int i = 0; i < length(COMMANDS); i++) {
+            if (COMMANDS[i].category == CommandCategory.INTERACT) {
+                if (COMMANDS[i].uid.equals(KEY_INTERACT) && nearestInteractiveCell == -1) {
+                    continue;
+                }
+                if (COMMANDS[i].uid.equals(KEY_START_LESSON) && (CURRENT_LESSON != null || !currentMap.equals("salle-de-classe"))) {
+                    continue;
+                }
+                if (COMMANDS[i].uid.equals(KEY_CONTACT) && !TIME_PASSING) {
+                    continue;
+                }
+                println("   [" + COMMANDS[i].getCurrentChar() + "] " + COMMANDS[i].name);
+            }
+        }
+    }
+
+    /**
+     * Efface le panneau affichant les touches d'interaction que l'on peut utiliser.
+     */
+    void removeCommandsPanel() {
         Map map = getMapOfName(currentMap);
         int width = getGUIWidth(map);
         int height = getGUIHeight(map);
         moveCursorTo(0,height+1);
-        for (int i = 0; i < length(COMMANDS); i++) {
-            if (COMMANDS[i].category == CommandCategory.INTERACT) {
-                if (COMMANDS[i].uid.equals(KEY_INTERACT) && nearestInteractiveCell == -1) {
-                    clearLine();
-                    continue;
-                }
-                if (COMMANDS[i].uid.equals(KEY_START_LESSON) && (CURRENT_LESSON != null || !currentMap.equals("salle-de-classe"))) {
-                    clearLine();
-                    continue;
-                }
-                if (COMMANDS[i].uid.equals(KEY_CONTACT) && !TIME_PASSING) {
-                    clearLine();
-                    continue;
-                }
-                println("   [" + COMMANDS[i].getCurrentChar() + "] " + COMMANDS[i].name + "   ");
-            }
+        for (int i = 1; i <= NUMBER_OF_INTERACTION_COMMANDS; i++) {
+            clearLine();
+            moveCursorTo(0,height+1+i);
         }
+        moveCursorTo(0,height+1);
     }
 
     /**
@@ -1839,7 +2009,7 @@ class Main extends Program {
      */
     void writeMessage(String message) {
         Map map = getMapOfName(currentMap);
-        int height = getGUIHeight(map) + getNumberOfCommandsForCategory(CommandCategory.INTERACT);
+        int height = getGUIHeight(map) + (EVASION_STARTED ? 0 : NUMBER_OF_INTERACTION_COMMANDS);
         moveCursorTo(0,height+2);
         clearLine();
         println(message);
@@ -1881,6 +2051,14 @@ class Main extends Program {
             copy[i] = help[i];
         }
         return copy;
+    }
+
+    /**
+     * Affiche le dernier message de Baste.
+     * Celui-ci devra rester afficher sur l'écran à tout moment durant l'évasion.
+     */
+    void printEvasionHelp() {
+        writeMessage("Baste - Dépêche-toi ! La sortie se trouve vers le haut du couloir 6 !");
     }
 
     /*
