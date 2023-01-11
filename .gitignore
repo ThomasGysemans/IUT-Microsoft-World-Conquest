@@ -5,6 +5,7 @@ classes/
 tests/
 cours.txt
 archive/
-archive.zip
+*.zip
 make_archive.sh
 count_lines.sh
+./saves/*

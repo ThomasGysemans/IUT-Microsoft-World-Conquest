@@ -27,138 +27,25 @@ class BashReader {
   protected final String ANSI_FOUND_PATTERN = "\u001b[38;2;24;56;217m";
   protected final String ANSI_RESET = "\033[0m";
 
-  protected final String HELP = """
-    Donnez des instructions à l'ordinateur au moyen de commandes simples.
-    Écrivez une commande puis tapez sur la touche Entrer de votre clavier.
-    L'ordinateur contient deux types d'éléments : des dossiers et des fichiers.
-    Les dossiers contiennent d'autres fichiers et d'autres dossiers,
-    et les fichiers peuvent être du texte, des images etc.
+  protected final String HELP = "Donnez des instructions à l'ordinateur au moyen de commandes simples.\nÉcrivez une commande puis tapez sur la touche Entrer de votre clavier.\nUne commande s'écrira toujours dans le format suivant : nom_de_la_commande ...options ...arguments.\n\nL'ordinateur contient deux types d'éléments : des dossiers et des fichiers.Les dossiers contiennent d'autres fichiers et d'autres dossiers,\net les fichiers peuvent être du texte, des images etc.\n\nPlus d'informations pour voir le contenu de l'ordinateur, tapez : man ls\nPlus d'informations pour accéder à un dossier, tapez : man cd\nPlus d'informations pour voir le contenu d'un fichier, tapez : man cat\nPlus d'informations pour encoder ou décoder un texte secret encrypté, tapez : man base64\nPlus d'informations pour copier le contenu d'un fichier ou d'un dossier, tapez : man cp\nToutes les autres commandes disponibles : pwd, echo, tr, exit, head, tail, grep\n";
 
-    Plus d'informations pour accéder à un fichier, tapez : man cd
-    Plus d'informations pour voir le contenu d'un fichier, tapez : man cat
-    Plus d'informations pour voir le contenu de l'ordinateur, tapez : man ls
-    Plus d'informations pour encoder ou décoder un texte secret encrypté, tapez : man base64
-    Plus d'informations pour copier le contenu d'un fichier ou d'un dossier, tapez : man cp
-    Toutes les autres commandes disponibles : pwd, echo, tr, exit, head, tail, grep
-  """;
-
+  // The text blocks are a feature coming from java 15,
+  // but this program must be compatible with java 11.
   public final Hashtable<String, String> MANUAL = new Hashtable<String, String>() {{
-    put("base64", """
-      La commande \"base64\" vous permet de crypter ou de décrypter un texte secret.
-      Crypter un texte signifie qu'il devient illisibile. C'est utile pour cacher un secret.
-
-      Pour crypter un texte, tapez : base64 Bonjour
-      Pour crypter le contenu d'un fichier, tapez : cat le_chemin_vers_le_fichier | base64
-
-      Pour décrypter un texte, tapez : base64 --decode le_texte
-      Pour décrypter un fichier, tapez : cat le_chemin_vers_le_fichier | base64 --decode
-
-      Évidemment, remplacez 'le_chemin_vers_le_fichier' avec le chemin du fichier cible.
-      Pour avoir plus d'informations quant au chemin d'un fichier, tapez : man cd
-    """);
-    put("cd", """
-      La commande \"cd\" vous permet de naviguer dans les dossiers de l'ordinateur.
-      L'ordinateur est rangé telle une bibliothèque, ou une armoire, et chaque section est un dossier, et chaque livre un fichier.
-      Vous commencez à la racine de la bibliothèque, dont le nom du dossier est juste \"/\".
-
-      Pour accéder à un dossier, il faut taper son chemin.
-      Si le dossier est contenu dans celui dans lequel on est actuellement, alors il suffit de taper : cd le_nom_du_dossier.
-      Exemple : \"cd Bureau\".
-
-      Si vous voulez y accéder depuis la racine, tapez le chemin complet vers celui-ci.
-      Exemple : \"cd /Bureau/answer_to_life.txt\", où \"/\" est la racine, \"Bureau\" un dossier dans la racine, et \"answer_to_life.txt\" un fichier.
-
-      Plus d'informations pour connaître votre position actuelle, tapez : man pwd.
-    """);
-    put("ls", """
-      La commande \"ls\" vous permet de lister le contenu du dossier dans lequel vous vous trouvez selon le PWD.
-      Le PWD représente votre position actuelle dans l'ordinateur, que l'on peut comparer à une bibliothèque, relative à la racine.
-      Pour plus d'informations sur le PWD, tapez : man pwd.
-
-      Par exemple, si vous vous situez dans le dossier \"Famille\" par exemple, vous pourrez lister son contenu.
-
-      Pour plus d'informations quant à la navigation, tapez : man cd.
-    """);
-    put("pwd", """
-      La commande \"pwd\" vous permet de savoir où vous vous situez dans la navigation de l'ordinateur.
-      Ceci vous donne le chemin absolu, c'est-à-dire le chemin complet depuis la racine,
-      de sorte à ce que l'on puisse vous retrouver depuis n'importe où.
-
-      Un chemin absolu commencera toujours avec la racine : \"/\".
-      Un chemin relatif se base sur le chemin actuel (le PWD).
-      Pour plus d'informations, tapez : man cd.
-    """);
-    put("echo", """
-      La commande \"echo\" vous permet d'afficher du texte.
-      Exemple : \"echo toto\". Ceci va afficher \"toto\".
-    """);
-    put("tr", """
-      La commande \"tr\" vous permet de modifier le contenu de l'entrée standard.
-      Vous pouvez modifier une partie du texte pour la remplacer par une autre.
-      Par exemple : \"echo yoyo | tr y t\" donnera comme résultat : \"toto\", 
-      car la commande a remplacé les \"y\" par des \"t\" dans le mot \"yoyo\".
-
-      Ceci fonctionne pour n'importe quelle entrée.
-      Cela vous permet ainsi de visualiser le contenu d'un fichier différement,
-      avec par exemple : \"cat /Bureau/answer_to_life.txt | tr 4 3\" donnant \"32\" au lieu de \"42\".
-
-      Pour plus d'informations sur la commande \"cat\", tapez : man cat.
-    """);
-    put("cat", """
-      La commande \"cat\" permet de lire le contenu d'un fichier texte.
-      Les fichiers textuels ont traditionnellement, à la toute fin de leur nom, l'extension : \".txt\".
-
-      Par exemple : ouvrez le dossier Bureau avec la commande \"cd\" (pour plus d'infos tapez : man cd),
-      puis listez son contenu avec la commande \"ls\" (pour plus d'infos tapez : man ls),
-      et enfin tapez \"cat le_nom_du_fichier\" en remplaçant \"le_nom_du_fichier\"
-      par le nom complet d'un des fichiers du dossier ouvert.
-    """);
-    put("head", """
-      La commande \"head\" permet de sélectionner un certain nombre de lignes à partir du début du texte sortant.
-      Cette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').
-      Exemple : \"man cd | head\".
-
-      Par défaut, les 5 premières lignes seront affichées.
-      Changez ceci avec l'option \"-n\".
-      Exemple : \"man cd | head -n 2\" (qui affiche les deux premières lignes du manuel de la commande \"cd\").
-    """);
-    put("tail", """
-      La commande \"tail\" permet de sélectionner un certain nombre de lignes à partir de la fin du texte sortant.
-      Cette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').
-      Exemple : \"man cd | tail\".
-
-      Par défaut, les 5 dernières lignes seront affichées.
-      Changez ceci avec l'option \"-n\".
-      Exemple : \"man cd | tail -n 2\" (qui affiche les deux dernières lignes du manuel de la commande \"cd\").
-    """);
-    put("grep", """
-      La commande \"grep\" affiche les lignes du texte sortant contenant un certain mot.
-      Vous pouvez l'utiliser pour lire un grand fichier et ne sélectionner que quelques lignes intéressantes.
-      Exemple : \"cat toto.txt | grep la\" (ce qui affiche toutes les lignes du fichier \"toto.txt\" contenant le texte \"la\").
-    """);
-    put("cp", """
-      La commande \"cp\" copie le contenu d'un fichier, ou d'un dossier, vers une cible,
-      remplaçant l'intégralité de son contenu actuel si elle existe déjà ou créant le fichier du même nom.
-      Exemple : \"cp toto.txt tata.txt\" (copie le contenu de toto.txt vers un fichier qui n'existe pas. La commande le crée.).
-
-      Cette commande peut également copier le contenu d'un dossier pour le fusionner avec le contenu d'un autre.
-      Exemple : \"cp MonSuperDossier UnNouveauDossier/\" (copie tous les fichiers du dossier dans un dossier que la commande crée également au passage).
-      Notes :
-        - Si la cible n'existe pas et qu'il s'agit d'un dossier, il faut faire comprendre à la commande qu'il s'agit d'un dossier en terminant le nom par un slash ("/").
-        - Au contraire, si le dossier cible contient déjà des fichiers de même nom, alors le contenu de ces fichiers sera remplacé par ceux du même nom, et la fusion continue.
-    """);
+    put("base64", "La commande \"base64\" vous permet de crypter ou de décrypter un texte secret.\nCrypter un texte signifie qu'il devient illisibile. C'est utile pour cacher un secret.\n\nPour crypter un texte, tapez : base64 Bonjour\nPour crypter le contenu d'un fichier, tapez : cat le_chemin_vers_le_fichier | base64\n\nPour décrypter un texte, tapez : base64 --decode le_texte\nPour décrypter un fichier, tapez : cat le_chemin_vers_le_fichier | base64 --decode\n\nÉvidemment, remplacez 'le_chemin_vers_le_fichier' avec le chemin du fichier cible.\nPour avoir plus d'informations quant au chemin d'un fichier, tapez : man cd");
+    put("cd", "La commande \"cd\" vous permet de naviguer dans les dossiers de l'ordinateur.\nL'ordinateur est rangé telle une bibliothèque, ou une armoire, et chaque section est un dossier, et chaque livre un fichier.\nVous commencez à la racine de la bibliothèque, dont le nom du dossier est juste \"/\".\n\nPour accéder à un dossier, il faut taper son chemin.\nSi le dossier est contenu dans celui dans lequel on est actuellement, alors il suffit de taper : cd le_nom_du_dossier.\nExemple : \"cd Bureau\".\n\nSi vous voulez y accéder depuis la racine, tapez le chemin complet vers celui-ci.\nExemple : \"cd /Bureau/answer_to_life.txt\", où \"/\" est la racine, \"Bureau\" un dossier dans la racine, et \"answer_to_life.txt\" un fichier.\n\nPlus d'informations pour connaître votre position actuelle, tapez : man pwd.");
+    put("ls", "La commande \"ls\" vous permet de lister le contenu du dossier dans lequel vous vous trouvez selon le PWD.\nLe PWD représente votre position actuelle dans l'ordinateur, que l'on peut comparer à une bibliothèque, relative à la racine.\nPour plus d'informations sur le PWD, tapez : man pwd.\n\nPar exemple, si vous vous situez dans le dossier \"Famille\", vous pourrez lister son contenu.\n\nSachez qu'il peut y avoir des fichiers secrets, pour les afficher, utilisez l'option `-a`.\nPar exemple : `ls -a`.\n\nPour plus d'informations quant à la navigation, tapez : man cd.");
+    put("pwd", "La commande \"pwd\" vous permet de savoir où vous vous situez dans la navigation de l'ordinateur.\nCeci vous donne le chemin absolu, c'est-à-dire le chemin complet depuis la racine,\nde sorte à ce que l'on puisse vous retrouver depuis n'importe où.\n\nUn chemin absolu commencera toujours avec la racine : \"/\".\nUn chemin relatif se base sur le chemin actuel (le PWD).\nPour plus d'informations, tapez : man cd.");
+    put("echo", "La commande \"echo\" vous permet d'afficher du texte.\nExemple : \"echo toto\". Ceci va afficher \"toto\".");
+    put("tr", "La commande \"tr\" vous permet de modifier le contenu de l'entrée standard.\nVous pouvez modifier une partie du texte pour la remplacer par une autre.\nPar exemple : \"echo yoyo | tr y t\" donnera comme résultat : \"toto\", \ncar la commande a remplacé les \"y\" par des \"t\" dans le mot \"yoyo\".\n\nCeci fonctionne pour n'importe quelle entrée.\nCela vous permet ainsi de visualiser le contenu d'un fichier différement,\navec par exemple : \"cat /Bureau/answer_to_life.txt | tr 4 3\" donnant \"32\" au lieu de \"42\".\n\nPour plus d'informations sur la commande \"cat\", tapez : man cat.");
+    put("cat", "La commande \"cat\" permet de lire le contenu d'un fichier texte.\nLes fichiers textuels ont traditionnellement, à la toute fin de leur nom, l'extension : \".txt\".\n\nPar exemple : ouvrez le dossier Bureau avec la commande \"cd\" (pour plus d'infos tapez : man cd),\npuis listez son contenu avec la commande \"ls\" (pour plus d'infos tapez : man ls),\net enfin tapez \"cat le_nom_du_fichier\" en remplaçant \"le_nom_du_fichier\"\npar le nom complet d'un des fichiers du dossier ouvert.");
+    put("head", "La commande \"head\" permet de sélectionner un certain nombre de lignes à partir du début du texte sortant.\nCette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').\nExemple : \"man cd | head\".\n\nPar défaut, les 5 premières lignes seront affichées.\nChangez ceci avec l'option \"-n\".\nExemple : \"man cd | head -n 2\" (qui affiche les deux premières lignes du manuel de la commande \"cd\").");
+    put("tail", "La commande \"tail\" permet de sélectionner un certain nombre de lignes à partir de la fin du texte sortant.\nCette commande devra toujours être précédée d'une autre, séparée par une pipe ('|').\nExemple : \"man cd | tail\".\n\nPar défaut, les 5 dernières lignes seront affichées.\nChangez ceci avec l'option \"-n\".\nExemple : \"man cd | tail -n 2\" (qui affiche les deux dernières lignes du manuel de la commande \"cd\").");
+    put("grep", "La commande \"grep\" affiche les lignes du texte sortant contenant un certain mot.\nVous pouvez l'utiliser pour lire un grand fichier et ne sélectionner que quelques lignes intéressantes.\nExemple : \"cat toto.txt | grep la\" (ce qui affiche toutes les lignes du fichier \"toto.txt\" contenant le texte \"la\").");
+    put("cp", "La commande \"cp\" copie le contenu d'un fichier, ou d'un dossier, vers une cible,\nremplaçant l'intégralité de son contenu actuel si elle existe déjà ou créant le fichier du même nom.\nExemple : \"cp toto.txt tata.txt\" (copie le contenu de toto.txt vers un fichier qui n'existe pas. La commande le crée.).\n\nCette commande peut également copier le contenu d'un dossier pour le fusionner avec le contenu d'un autre.\nExemple : \"cp MonSuperDossier UnNouveauDossier/\" (copie tous les fichiers du dossier dans un dossier que la commande crée également au passage).\nNotes :\n  - Si la cible n'existe pas et qu'il s'agit d'un dossier, il faut faire comprendre à la commande qu'il s'agit d'un dossier en terminant le nom par un slash (\"/\").\n  - Au contraire, si le dossier cible contient déjà des fichiers de même nom, alors le contenu de ces fichiers sera remplacé par ceux du même nom, et la fusion continue.");
     put("exit", "La commande \"exit\" stoppe le terminal.");
-    put("man", """
-      La commande \"man\" ouvre le manuel d'utilisation sur une commande spécifique.
-      Utilisez la commande la manière suivante : \"man nom_de_la_commande\".
-      Remplacez \"nom de la commande\" par le nom de la commande sur laquelle vous avez besoin de plus d'informations.
-      Exemple : \"man cd\".
-    """);
-    put("help", """
-      La commande \"help\" est une commande unique au jeu.
-      Elle vous permet d'avoir les premières informations essentielles afin de comprendre quoi faire.
-      En suivant les instructions, vous serez capable d'accomplir votre objectif.
-    """);
+    put("man", "La commande \"man\" ouvre le manuel d'utilisation sur une commande spécifique.\nUtilisez la commande la manière suivante : \"man nom_de_la_commande\".\nRemplacez \"nom de la commande\" par le nom de la commande sur laquelle vous avez besoin de plus d'informations.\nExemple : \"man cd\".");
+    put("help", "La commande \"help\" est une commande unique au jeu.\nElle vous permet d'avoir les premières informations essentielles afin de comprendre quoi faire.\nEn suivant les instructions, vous serez capable d'accomplir votre objectif.");
   }};
 
   protected final int HISTORY_MAX_COMMANDS = 20;
@@ -268,7 +155,15 @@ class BashReader {
             return makeError(BashError.EXPECTING_ARGUMENT, command);
           }
         }
-        return distributePipes(command, new BashResult((command.arguments == null ? command.standardInput : command.arguments[0]).replaceAll("\"|'", "")));
+        String echoOutput = "";
+        if (command.arguments != null) {
+          for (int i = 0; i < command.arguments.length; i++) {
+            echoOutput += command.arguments[i] + " ";
+          }
+        } else {
+          echoOutput = command.standardInput;
+        }
+        return distributePipes(command, new BashResult(echoOutput.replaceAll("\"|'", "")));
       case "tr":
         if (command.options != null) {
           return makeError(BashError.UNKNOWN_OPTION, command);

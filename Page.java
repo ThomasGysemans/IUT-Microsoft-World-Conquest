@@ -4,4 +4,5 @@ enum Page {
   COMMANDS,
   CREDITS,
   ACHIEVEMENTS,
+  CHECK_SCREEN,
 }
