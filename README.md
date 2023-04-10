@@ -4,6 +4,8 @@ Un RPG unique en son genre qui se joue dans le terminal ! Il s'agit d'un projet 
 
 > **NOTE**: Le code source de iJava (.jar) est présent dans [lib](./lib)
 
+> **NOTE**: Le projet est terminé, il ne sera pas continué. Il a été livré tel quel, dans les temps. Certains bugs n'ont heureusement pas été vus lors de la notation donc c'est cool !!
+
 ## Equipe
 
 - Thomas GYSEMANS ([CodoPixel](https://github.com/CodoPixel/))
@@ -219,15 +221,6 @@ Cependant, vu qu'on utilise iJava en plus des restrictions de fonctionnalités, 
 ## Tests
 
 Puisque le jeu se base à 90% sur de l'événementiel, il est difficile de réaliser des tests unitaires. Quelques tests sont toutefois possibles pour certaines fonctions de traitement des chaines de caractères et des fichiers  et sont à la fin du code source.
-
-## Futur du jeu
-
-Quelques fonctionnalités sont prévues :
-
-- Utiliser du vrai Java
-- Pénalité si absence aux cours
-- Gardes qui surveillent la prison la nuit
-- Succès (achievements).
 
 ## Remerciements
 
